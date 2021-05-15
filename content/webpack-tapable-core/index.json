@@ -1,0 +1,864 @@
+{
+  "id": "story-for-SkDbI2zEEae9RK2HtjG79fMWH9u2-id-1594112224409",
+  "isLocalDraft": true,
+  "title": "Tapable library as a core of webpack architecture",
+  "description": "Webpack architecture is heavily based on events (each plugin is basically a set of event listeners called during compilation). Under the hood, webpack uses a library called `tapable` to encapsulate \"publish-subscribe\" implementation.",
+  "content": "## TL;DR \nWebpack architecture is heavily based on events. Each webpack **plugin** is basically a **set of listeners** hooked on different events during compilation phases. Under the hood, webpack uses a library called `tapable` to encapsulate \"publish-subscribe\" implementation.\n\nTapable provides different \"hooks\" classes (`SyncBailHook`, `AsyncParallelHook`, etc.) to \"hook\" on events with some extra rich functionality (e.g. interceptions or cross-listeners integration).\n\nFor example, `DefinePugin` (used to define environment variables, e.g. `NODE_ENV`) and `SizeLimitsPlugin` (reports oversized chunks, e.g. *size > 250kb*) tap into compiler instance *hooks*: the first one listens to *compilation* event in order to insert extra variables and the latter to *afterEmit* event - to proceed with assets evaluation once they were emitted.\n\n```swimlane\nDefinePlugin->Compiler: hooks.compilation.tap\nCompiler->DefinePlugin: hooks.compilation.call\nSizeLimitsPlugin->Compiler: hooks.afterEmit.tap\nCompiler->SizeLimitsPlugin: hooks.afterEmit.callAsync\n```\n &nbsp;\nLet's have a quick look under the hood of `webpack` at `SizeLimitsPlugin` integration.\n{snapshot:19}\n| | |\n| --------- | ------- |\n| {step:0} | [`SizeLimitsPlugin`](#codecrumbs-item-path=lib/performance/SizeLimitsPlugin.js) is instantiated and assigned to *compiler*  in [`WebpackOptionsApply`](#codecrumbs-item-path=lib/WebpackOptionsApply.js) if `performance` option is enabled from webpack config (highlight {lib/WebpackOptionsApply.js->lib/performance/SizeLimitsPlugin.js}) |\n| {step:1} | Then [`SizeLimitsPlugin`](#codecrumbs-item-path=lib/performance/SizeLimitsPlugin.js) taps on `afterEmit` event and will sit still until most of the compilation flow is done and that particular event is called. |\n &nbsp;\n\n{snapshot:12} \nOnce the event is called {lib/Compiler.js->lib/performance/SizeLimitsPlugin.js} the plugin will do its job (collecting oversized chunks in our case {step:2}, {step:3}).\n\n>Indeed, all plugins are assigned similarly, so then you have a pipeline of plugins performing different operations but staying very loosely coupled.\n\n## Slightly longer read\nLet's learn more about `tapable` library.\n\nHave a look at this classic events-based architecture all of us have used many times.\n{snapshot:16} \nUsually, *Pub-Sub* (*Observer* or *Listener*) behavioral pattern is used to establish a one-to-many relationship: publisher dispatches events {step:0} and multiple subscribers can listen to them accordingly {step:1}.\n\n*Tapable* is the *Pub-Sub* implementation on steroids. One key difference - instead of just string event names, uses the \"Hook\" class instance per event. It implements `tap`/`tapAsync` with `call`/`callAsync` methods to listen and publish events, or even `intercept` them.\n{snapshot:22} \nOn top of classic \"Sync\" ({step:0}) events handling, it also adds \"AsyncSeries\" ({step:1}), \"AsyncParallel\" ({step:2}) (handlers called in a row or parallel, respectively).\n\nOn the scheme below you can see another example where plugins use a few more advanced hooks sub-classes from `tapable` (\"Waterfall\" and \"Bail\").\n{snapshot:15} \nUsing them with `callback` allows us to pass data between different subscribers (Waterfall) or exit early (Bail).\n\n> Event-driven architecture has some pros&cons. Like any other architectures there is no *silver bullet*. Within *webpack*, however, it brings endless scalability and works very well with a pipeline of loosely-coupled plugins.\n\nTo learn more about `tapable` library checkout [tapable repository](https://github.com/webpack/tapable).\n",
+  "tags": "javascript,webpack,webpack@4.43.0,tapable@1.1.3",
+  "snapshotsIdCount": 22,
+  "snapshots": [
+    {
+      "id": "12",
+      "aliasId": "12",
+      "title": "SizeLimitsPlugin and Compiler",
+      "html": "<svg width=\"1278\" height=\"580\" xmlns=\"http://www.w3.org/2000/svg\" shape-rendering=\"optimizeSpeed\" class=\"SvgTree\"><rect x=\"0\" y=\"0\" width=\"1278\" height=\"580\" class=\"UnderLayer\"></rect><path class=\"SourceEdge\" d=\"M 63.79 360.5 L 92.5 360.5 L 92.5 35.5 Q 92.5 30.5 97.5 30.5 L 105.5 30.5\"></path><polyline points=\"226.23,30.5, 268.5,30.5, 268.5,30.5\" class=\"SourceEdge\"></polyline><path class=\"SourceEdge SourceEdge-selected\" d=\"M 63.79 360.5 L 92.5 360.5 L 92.5 480.5 Q 92.5 485.5 97.5 485.5 L 105.5 485.5\"></path><g class=\"FolderNode\"><svg version=\"1.1\" x=\"17\" y=\"352\" viewBox=\"0 0 276.157 276.157\" width=\"15\" height=\"15\" shape-rendering=\"geometricPrecision\" class=\"FolderNodeIcon\"><path d=\"M273.081,101.378c-3.3-4.651-8.86-7.319-15.255-7.319h-24.34v-26.47c0-10.201-8.299-18.5-18.5-18.5  h-85.322c-3.63,0-9.295-2.876-11.436-5.806l-6.386-8.735c-4.982-6.814-15.104-11.954-23.546-11.954H58.731  c-9.293,0-18.639,6.608-21.738,15.372l-2.033,5.752c-0.958,2.71-4.721,5.371-7.596,5.371H18.5c-10.201,0-18.5,8.299-18.5,18.5  v167.07c0,0.885,0.161,1.73,0.443,2.519c0.152,3.306,1.18,6.424,3.053,9.064c3.3,4.652,8.86,7.319,15.255,7.319h188.486  c11.395,0,23.27-8.424,27.035-19.179l40.677-116.188C277.061,112.159,276.381,106.03,273.081,101.378z M18.5,64.089h8.864  c9.295,0,18.64-6.608,21.738-15.372l2.032-5.75c0.959-2.711,4.722-5.372,7.597-5.372h29.564c3.63,0,9.295,2.876,11.437,5.806  l6.386,8.734c4.982,6.815,15.104,11.954,23.546,11.954h85.322c1.898,0,3.5,1.603,3.5,3.5v26.47H69.34  c-11.395,0-23.27,8.424-27.035,19.179L15,191.231V67.589C15,65.692,16.603,64.089,18.5,64.089z M260.791,113.238l-40.677,116.188  c-1.674,4.781-7.812,9.135-12.877,9.135H18.751c-1.448,0-2.577-0.373-3.02-0.998c-0.443-0.625-0.423-1.814,0.056-3.181  l40.677-116.188c1.674-4.781,7.812-9.135,12.877-9.135h188.486c1.448,0,2.577,0.373,3.021,0.998  C261.29,110.682,261.27,111.871,260.791,113.238z\"></path></svg><g><rect x=\"21\" y=\"363\" width=\"11\" height=\"4\" class=\"Folder-collapsed-children-rect\"></rect><text x=\"22\" y=\"366\" class=\"Folder-collapsed-children-text\">..</text></g><rect x=\"10\" y=\"345\" width=\"50.29\" height=\"30\" class=\"NodeText-cover\"></rect><text x=\"35\" y=\"365\" data-path=\"lib\" class=\"NodeNameText\">lib</text></g><g class=\"FolderNode\"><svg version=\"1.1\" x=\"112\" y=\"22\" viewBox=\"0 0 276.157 276.157\" width=\"15\" height=\"15\" shape-rendering=\"geometricPrecision\" class=\"FolderNodeIcon\"><path d=\"M273.081,101.378c-3.3-4.651-8.86-7.319-15.255-7.319h-24.34v-26.47c0-10.201-8.299-18.5-18.5-18.5  h-85.322c-3.63,0-9.295-2.876-11.436-5.806l-6.386-8.735c-4.982-6.814-15.104-11.954-23.546-11.954H58.731  c-9.293,0-18.639,6.608-21.738,15.372l-2.033,5.752c-0.958,2.71-4.721,5.371-7.596,5.371H18.5c-10.201,0-18.5,8.299-18.5,18.5  v167.07c0,0.885,0.161,1.73,0.443,2.519c0.152,3.306,1.18,6.424,3.053,9.064c3.3,4.652,8.86,7.319,15.255,7.319h188.486  c11.395,0,23.27-8.424,27.035-19.179l40.677-116.188C277.061,112.159,276.381,106.03,273.081,101.378z M18.5,64.089h8.864  c9.295,0,18.64-6.608,21.738-15.372l2.032-5.75c0.959-2.711,4.722-5.372,7.597-5.372h29.564c3.63,0,9.295,2.876,11.437,5.806  l6.386,8.734c4.982,6.815,15.104,11.954,23.546,11.954h85.322c1.898,0,3.5,1.603,3.5,3.5v26.47H69.34  c-11.395,0-23.27,8.424-27.035,19.179L15,191.231V67.589C15,65.692,16.603,64.089,18.5,64.089z M260.791,113.238l-40.677,116.188  c-1.674,4.781-7.812,9.135-12.877,9.135H18.751c-1.448,0-2.577-0.373-3.02-0.998c-0.443-0.625-0.423-1.814,0.056-3.181  l40.677-116.188c1.674-4.781,7.812-9.135,12.877-9.135h188.486c1.448,0,2.577,0.373,3.021,0.998  C261.29,110.682,261.27,111.871,260.791,113.238z\"></path></svg><g><rect x=\"116\" y=\"33\" width=\"11\" height=\"4\" class=\"Folder-collapsed-children-rect\"></rect><text x=\"117\" y=\"36\" class=\"Folder-collapsed-children-text\">..</text></g><rect x=\"105\" y=\"15\" width=\"117.72999999999999\" height=\"30\" class=\"NodeText-cover\"></rect><text x=\"130\" y=\"35\" data-path=\"lib/performance\" class=\"NodeNameText\">performance</text></g><g class=\"FileNode\"><svg version=\"1.1\" x=\"112\" y=\"476\" width=\"15\" height=\"15\" viewBox=\"0 0 512 512\" shape-rendering=\"geometricPrecision\" class=\"FileNodeIcon\"><path d=\"m436.03125 107.03125-104.601562-102.734375c-2.804688-2.753906-6.578126-4.296875-10.511719-4.296875h-264.449219c-30.859375 0-55.96875 25.105469-55.96875 55.96875v400.0625c0 30.859375 25.105469 55.96875 55.96875 55.96875h328.082031c30.859375 0 55.96875-25.105469 55.96875-55.96875v-338.296875c0-4.027344-1.617187-7.882813-4.488281-10.703125zm-100.113281-56.273438 52.921875 51.976563h-48.152344c-2.628906 0-4.769531-2.140625-4.769531-4.769531zm48.632812 431.242188h-328.082031c-14.316406 0-25.96875-11.648438-25.96875-25.96875v-400.0625c0-14.320312 11.648438-25.96875 25.96875-25.96875h249.453125v67.964844c0 19.171875 15.597656 34.769531 34.769531 34.769531h69.828125v323.296875c0 14.320312-11.648437 25.96875-25.96875 25.96875zm0 0\"></path><path d=\"m324.644531 238h-211.453125c-8.285156 0-15 6.714844-15 15s6.714844 15 15 15h211.453125c8.285157 0 15-6.714844 15-15s-6.714843-15-15-15zm0 0\"></path><path d=\"m113.191406 328h172.414063c8.285156 0 15-6.714844 15-15s-6.714844-15-15-15h-172.414063c-8.285156 0-15 6.714844-15 15s6.714844 15 15 15zm0 0\"></path><path d=\"m306.40625 358h-193.214844c-8.285156 0-15 6.714844-15 15s6.714844 15 15 15h193.214844c8.28125 0 15-6.714844 15-15s-6.71875-15-15-15zm0 0\"></path></svg><g><rect x=\"105\" y=\"470\" width=\"117.72999999999999\" height=\"25\" class=\"NodeText-cover\"></rect><title>lib/Compiler.js</title><text x=\"128\" y=\"490\" data-path=\"lib/Compiler.js\" class=\"NodeNameText\">Compiler.js</text></g></g><g class=\"FileNode\"><svg version=\"1.1\" x=\"275\" y=\"21\" width=\"15\" height=\"15\" viewBox=\"0 0 512 512\" shape-rendering=\"geometricPrecision\" class=\"FileNodeIcon\"><path d=\"m436.03125 107.03125-104.601562-102.734375c-2.804688-2.753906-6.578126-4.296875-10.511719-4.296875h-264.449219c-30.859375 0-55.96875 25.105469-55.96875 55.96875v400.0625c0 30.859375 25.105469 55.96875 55.96875 55.96875h328.082031c30.859375 0 55.96875-25.105469 55.96875-55.96875v-338.296875c0-4.027344-1.617187-7.882813-4.488281-10.703125zm-100.113281-56.273438 52.921875 51.976563h-48.152344c-2.628906 0-4.769531-2.140625-4.769531-4.769531zm48.632812 431.242188h-328.082031c-14.316406 0-25.96875-11.648438-25.96875-25.96875v-400.0625c0-14.320312 11.648438-25.96875 25.96875-25.96875h249.453125v67.964844c0 19.171875 15.597656 34.769531 34.769531 34.769531h69.828125v323.296875c0 14.320312-11.648437 25.96875-25.96875 25.96875zm0 0\"></path><path d=\"m324.644531 238h-211.453125c-8.285156 0-15 6.714844-15 15s6.714844 15 15 15h211.453125c8.285157 0 15-6.714844 15-15s-6.714843-15-15-15zm0 0\"></path><path d=\"m113.191406 328h172.414063c8.285156 0 15-6.714844 15-15s-6.714844-15-15-15h-172.414063c-8.285156 0-15 6.714844-15 15s6.714844 15 15 15zm0 0\"></path><path d=\"m306.40625 358h-193.214844c-8.285156 0-15 6.714844-15 15s6.714844 15 15 15h193.214844c8.28125 0 15-6.714844 15-15s-6.71875-15-15-15zm0 0\"></path></svg><g><rect x=\"268\" y=\"15\" width=\"185.17\" height=\"25\" class=\"NodeText-cover\"></rect><title>lib/performance/SizeLimitsPlugin.js</title><text x=\"291\" y=\"35\" data-path=\"lib/performance/SizeLimitsPlugin.js\" class=\"NodeNameText\">SizeLimitsPlugin.js</text></g></g><svg version=\"1.1\" width=\"6px\" height=\"6px\" x=\"102.5\" y=\"27.5\" shape-rendering=\"geometricPrecision\"><circle r=\"2.5\" cx=\"3\" cy=\"3\" class=\"DotIcon\"></circle></svg><svg version=\"1.1\" width=\"6px\" height=\"6px\" x=\"102.5\" y=\"482.5\" shape-rendering=\"geometricPrecision\"><circle r=\"2.5\" cx=\"3\" cy=\"3\" class=\"DotIconSelected\"></circle></svg><svg version=\"1.1\" width=\"6px\" height=\"6px\" x=\"265.5\" y=\"27.5\" shape-rendering=\"geometricPrecision\"><circle r=\"2.5\" cx=\"3\" cy=\"3\" class=\"DotIcon\"></circle></svg><g data-connection-to-file-root-id=\"0\"><line x1=\"455\" y1=\"30\" x2=\"498\" y2=\"31\" shape-rendering=\"crispEdges\" class=\"StoryTellingCodeConnectionToFile\" stroke-dasharray=\"2\"></line><line x1=\"455\" y1=\"28\" x2=\"455\" y2=\"33\" shape-rendering=\"crispEdges\" class=\"StoryTellingCodeConnectionToFile\" stroke-dasharray=\"2\"></line></g><g data-connection-to-file-root-id=\"1\"><polyline points=\"225,485,430,485,430,354,440,354\" shape-rendering=\"crispEdges\" class=\"StoryTellingCodeConnectionToFile StoryTellingCodeConnectionToFile-selected\" stroke-dasharray=\"2\"></polyline><line x1=\"225\" y1=\"483\" x2=\"225\" y2=\"488\" shape-rendering=\"crispEdges\" class=\"StoryTellingCodeConnectionToFile StoryTellingCodeConnectionToFile-selected\" stroke-dasharray=\"2\"></line></g><g class=\"Color1\" data-root-id=\"connection-0\" data-snapshot-play-item=\"connection\" data-snapshot-play-group=\"1\" data-position-x=\"418\" data-position-y=\"294.5\"><path class=\"StoryTellingNodesConnectionShadow\" shape-rendering=\"geometricPrecision\" d=\"M438 528 C375 517 430 72 493 63\"></path><path class=\"EdgeMouseHandler\" shape-rendering=\"geometricPrecision\" d=\"M437 527 C375 517 430 72 492 62\" data-connection-path=\"lib/Compiler.js|lib/performance/SizeLimitsPlugin.js\"></path><path class=\"StoryTellingNodesConnection\" shape-rendering=\"geometricPrecision\" d=\"M437 527 C375 517 430 72 492 62\"></path><circle cx=\"438\" cy=\"528\" r=\"3.5\" shape-rendering=\"geometricPrecision\" class=\"StoryTellingNodeSourceShadow\"></circle><circle cx=\"437\" cy=\"527\" r=\"3\" shape-rendering=\"geometricPrecision\" class=\"StoryTellingNodeSource\"></circle><svg version=\"1.1\" x=\"486.5\" y=\"56.5\" viewBox=\"0 0 448.011 448.011\" width=\"13\" height=\"13\" shape-rendering=\"geometricPrecision\" class=\"ArrowShadow\"><g><path d=\"M438.731,209.463l-416-192c-6.624-3.008-14.528-1.216-19.136,4.48c-4.64,5.696-4.8,13.792-0.384,19.648l136.8,182.4    l-136.8,182.4c-4.416,5.856-4.256,13.984,0.352,19.648c3.104,3.872,7.744,5.952,12.448,5.952c2.272,0,4.544-0.48,6.688-1.472    l416-192c5.696-2.624,9.312-8.288,9.312-14.528S444.395,212.087,438.731,209.463z\" style=\"transform: rotate(-9.16235deg); transform-origin: 50% 50%;\"></path></g></svg><svg version=\"1.1\" x=\"485.5\" y=\"55.5\" viewBox=\"0 0 448.011 448.011\" width=\"13\" height=\"13\" shape-rendering=\"geometricPrecision\" class=\"ArrowIcon\"><g><path d=\"M438.731,209.463l-416-192c-6.624-3.008-14.528-1.216-19.136,4.48c-4.64,5.696-4.8,13.792-0.384,19.648l136.8,182.4    l-136.8,182.4c-4.416,5.856-4.256,13.984,0.352,19.648c3.104,3.872,7.744,5.952,12.448,5.952c2.272,0,4.544-0.48,6.688-1.472    l416-192c5.696-2.624,9.312-8.288,9.312-14.528S444.395,212.087,438.731,209.463z\" style=\"transform: rotate(-9.16235deg); transform-origin: 50% 50%;\"></path></g></svg>)<svg version=\"1.1\" x=\"412.5\" y=\"289\" viewBox=\"0 0 448.011 448.011\" width=\"13\" height=\"13\" shape-rendering=\"geometricPrecision\" class=\"ArrowShadow\"><g><path d=\"M438.731,209.463l-416-192c-6.624-3.008-14.528-1.216-19.136,4.48c-4.64,5.696-4.8,13.792-0.384,19.648l136.8,182.4    l-136.8,182.4c-4.416,5.856-4.256,13.984,0.352,19.648c3.104,3.872,7.744,5.952,12.448,5.952c2.272,0,4.544-0.48,6.688-1.472    l416-192c5.696-2.624,9.312-8.288,9.312-14.528S444.395,212.087,438.731,209.463z\" style=\"transform: rotate(-83.1076deg); transform-origin: 50% 50%;\"></path></g></svg><svg version=\"1.1\" x=\"411.5\" y=\"288\" viewBox=\"0 0 448.011 448.011\" width=\"13\" height=\"13\" shape-rendering=\"geometricPrecision\" class=\"ArrowIcon\"><g><path d=\"M438.731,209.463l-416-192c-6.624-3.008-14.528-1.216-19.136,4.48c-4.64,5.696-4.8,13.792-0.384,19.648l136.8,182.4    l-136.8,182.4c-4.416,5.856-4.256,13.984,0.352,19.648c3.104,3.872,7.744,5.952,12.448,5.952c2.272,0,4.544-0.48,6.688-1.472    l416-192c5.696-2.624,9.312-8.288,9.312-14.528S444.395,212.087,438.731,209.463z\" style=\"transform: rotate(-83.1076deg); transform-origin: 50% 50%;\"></path></g></svg></g><polyline data-explanation-line-id=\"0\" shape-rendering=\"geometricPrecision\" points=\"418,295, 397,106\" class=\"ExplanationConnection\" stroke-dasharray=\"2\" stroke-linecap=\"round\"></polyline><polyline data-explanation-line-id=\"1\" shape-rendering=\"geometricPrecision\" points=\"440,524, 398,507\" class=\"ExplanationConnection\" stroke-dasharray=\"2\" stroke-linecap=\"round\"></polyline><polyline data-explanation-line-id=\"2\" shape-rendering=\"geometricPrecision\" points=\"498,59, 471,50\" class=\"ExplanationConnection\" stroke-dasharray=\"2\" stroke-linecap=\"round\"></polyline><polyline data-explanation-line-id=\"3\" shape-rendering=\"geometricPrecision\" points=\"498,122, 486,118\" class=\"ExplanationConnection\" stroke-dasharray=\"2\" stroke-linecap=\"round\"></polyline><polyline data-explanation-line-id=\"4\" shape-rendering=\"geometricPrecision\" points=\"498,206, 478,204\" class=\"ExplanationConnection\" stroke-dasharray=\"2\" stroke-linecap=\"round\"></polyline></svg><div data-root-id=\"openedCodeFile-0\" data-snapshot-play-item=\"openedCodeFile\" data-snapshot-play-group=\"0\" data-position-x=\"498\" data-position-y=\"16\" data-file-path=\"lib/performance/SizeLimitsPlugin.js\" class=\"CodePreviewContainer react-draggable\" style=\"height: 300px; width: 650px; transform: translate(498px, 16px);\"><div class=\"Header\"><div class=\"FilePath\"><div class=\"FilePathItself\"><a href=\"https://github.com/webpack/webpack/blob/v4.43.0/lib/performance/SizeLimitsPlugin.js\" target=\"_blank\">lib / performance / SizeLimitsPlugin.js</a></div></div></div><div class=\"Code\" data-scroll-top=\"646\"><pre class=\"CodePre prism-code language-jsx\" style=\"color: rgb(214, 222, 235); background-color: rgb(1, 22, 39); position: relative;\"><div style=\"overflow: visible; height: 0px; width: 0px;\"><div class=\"CodeLinesList ScrollbarWin ScrollbarWinLight\" style=\"position: relative; height: 257px; width: 646px; overflow: auto; will-change: transform; direction: ltr;\"><div style=\"height: 1806px; width: 100%; position: absolute; top: -646px;\"><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 588px; height: 21px; width: 100%;\"><span class=\"LineTo\">29</span><span class=\"token plain\">\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">const</span><span class=\"token plain\"> assetFilter </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 609px; height: 21px; width: 100%;\"><span class=\"LineTo\">30</span><span class=\"token plain\">\t\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">this</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">assetFilter </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">||</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token parameter\">name</span><span class=\"token parameter punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token parameter\"> source</span><span class=\"token parameter punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token parameter\"> info</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"> </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=&gt;</span><span class=\"token plain\"> </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">!</span><span class=\"token plain\">info</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">development</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">;</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 630px; height: 21px; width: 100%;\"><span class=\"LineTo\">31</span><span class=\"token plain\" style=\"display: inline-block;\"></span></div><div class=\"token-line Storytelling\" data-explanation-code-line-id=\"2\" style=\"position: absolute; left: 0px; top: 651px; height: 21px; width: 100%;\"><span class=\"LineTo\">32</span><span class=\"token plain\">\t\tcompiler</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">hooks</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">afterEmit</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">tap</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token string\" style=\"color: rgb(173, 219, 103);\">\"SizeLimitsPlugin\"</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token plain\"> </span><span class=\"token parameter\">compilation</span><span class=\"token plain\"> </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=&gt;</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line CollapsedLine\" style=\"position: absolute; left: 0px; top: 672px; height: 21px; width: 100%;\"><span class=\"PlusIcon\">+ </span><div class=\"InnerLine\"></div></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 693px; height: 21px; width: 100%;\"><span class=\"LineTo\">74</span><span class=\"token plain\">\t\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">const</span><span class=\"token plain\"> entrypointsOverLimit </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">[</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">]</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">;</span><span class=\"token plain\"></span></div><div class=\"token-line Storytelling\" data-explanation-code-line-id=\"3\" style=\"position: absolute; left: 0px; top: 714px; height: 21px; width: 100%;\"><span class=\"LineTo\">75</span><span class=\"token plain\">\t\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">for</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">const</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">[</span><span class=\"token plain\">name</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token plain\"> entry</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">]</span><span class=\"token plain\"> </span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">of</span><span class=\"token plain\"> compilation</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">entrypoints</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 735px; height: 21px; width: 100%;\"><span class=\"LineTo\">76</span><span class=\"token plain\">\t\t\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">const</span><span class=\"token plain\"> size </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=</span><span class=\"token plain\"> </span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">getEntrypointSize</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token plain\">entry</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">;</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 756px; height: 21px; width: 100%;\"><span class=\"LineTo\">77</span><span class=\"token plain\" style=\"display: inline-block;\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 777px; height: 21px; width: 100%;\"><span class=\"LineTo\">78</span><span class=\"token plain\">\t\t\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">if</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token plain\">size </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">&gt;</span><span class=\"token plain\"> entrypointSizeLimit</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line Storytelling\" data-explanation-code-line-id=\"4\" style=\"position: absolute; left: 0px; top: 798px; height: 21px; width: 100%;\"><span class=\"LineTo\">79</span><span class=\"token plain\">\t\t\t\t\tentrypointsOverLimit</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">push</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 819px; height: 21px; width: 100%;\"><span class=\"LineTo\">80</span><span class=\"token plain\">\t\t\t\t\t\tname</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">:</span><span class=\"token plain\"> name</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 840px; height: 21px; width: 100%;\"><span class=\"LineTo\">81</span><span class=\"token plain\">\t\t\t\t\t\tsize</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">:</span><span class=\"token plain\"> size</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 861px; height: 21px; width: 100%;\"><span class=\"LineTo\">82</span><span class=\"token plain\">\t\t\t\t\t\tfiles</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">:</span><span class=\"token plain\"> entry</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">getFiles</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">filter</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token plain\">fileFilter</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 882px; height: 21px; width: 100%;\"><span class=\"LineTo\">83</span><span class=\"token plain\">\t\t\t\t\t</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">}</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">;</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 903px; height: 21px; width: 100%;\"><span class=\"LineTo\">84</span><span class=\"token plain\">\t\t\t\t\t</span><span class=\"token comment\" style=\"color: rgb(99, 119, 119); font-style: italic;\">/** @type {any} */</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token plain\">entry</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">isOverSizeLimit </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=</span><span class=\"token plain\"> </span><span class=\"token boolean\" style=\"color: rgb(255, 88, 116);\">true</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">;</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 924px; height: 21px; width: 100%;\"><span class=\"LineTo\">85</span><span class=\"token plain\">\t\t\t\t</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">}</span><span class=\"token plain\"></span></div></div></div></div><div class=\"resize-triggers\"><div class=\"expand-trigger\"><div style=\"width: 647px; height: 258px;\"></div></div><div class=\"contract-trigger\"></div></div></pre></div></div><div data-root-id=\"openedCodeFile-1\" data-snapshot-play-item=\"openedCodeFile\" data-snapshot-play-group=\"0\" data-position-x=\"440\" data-position-y=\"340\" data-file-path=\"lib/Compiler.js\" class=\"CodePreviewContainer react-draggable\" style=\"height: 210px; width: 680px; transform: translate(440px, 340px);\"><div class=\"Header\"><div class=\"FilePath\"><div class=\"FilePathItself\"><a href=\"https://github.com/webpack/webpack/blob/v4.43.0/lib/Compiler.js\" target=\"_blank\">lib / Compiler.js</a></div></div></div><div class=\"Code\" data-scroll-top=\"7393\"><pre class=\"CodePre prism-code language-jsx\" style=\"color: rgb(214, 222, 235); background-color: rgb(1, 22, 39); position: relative;\"><div style=\"overflow: visible; height: 0px; width: 0px;\"><div class=\"CodeLinesList ScrollbarWin ScrollbarWinLight\" style=\"position: relative; height: 167px; width: 676px; overflow: auto; will-change: transform; direction: ltr;\"><div style=\"height: 12894px; width: 100%; position: absolute; top: -7393px;\"><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 7350px; height: 21px; width: 100%;\"><span class=\"LineTo\">351</span><span class=\"token plain\">\t</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">}</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 7371px; height: 21px; width: 100%;\"><span class=\"LineTo\">352</span><span class=\"token plain\" style=\"display: inline-block;\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 7392px; height: 21px; width: 100%;\"><span class=\"LineTo\">353</span><span class=\"token plain\">\t</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">emitAssets</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token parameter\">compilation</span><span class=\"token parameter punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token parameter\"> callback</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line CollapsedLine\" style=\"position: absolute; left: 0px; top: 7413px; height: 21px; width: 100%;\"><span class=\"PlusIcon\">+ </span><div class=\"InnerLine\"></div></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 7434px; height: 21px; width: 100%;\"><span class=\"LineTo\">358</span><span class=\"token plain\">\t\t\tasyncLib</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">forEachLimit</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 7455px; height: 21px; width: 100%;\"><span class=\"LineTo\">359</span><span class=\"token plain\">\t\t\t\tcompilation</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">getAssets</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 7476px; height: 21px; width: 100%;\"><span class=\"LineTo\">360</span><span class=\"token plain\">\t\t\t\t</span><span class=\"token number\" style=\"color: rgb(247, 140, 108);\">15</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 7497px; height: 21px; width: 100%;\"><span class=\"LineTo\">361</span><span class=\"token plain\">\t\t\t\t</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token parameter punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token parameter\"> name</span><span class=\"token parameter punctuation\" style=\"color: rgb(199, 146, 234);\">:</span><span class=\"token parameter\"> file</span><span class=\"token parameter punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token parameter\"> source </span><span class=\"token parameter punctuation\" style=\"color: rgb(199, 146, 234);\">}</span><span class=\"token parameter punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token parameter\"> callback</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"> </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=&gt;</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line CollapsedLine\" style=\"position: absolute; left: 0px; top: 7518px; height: 21px; width: 100%;\"><span class=\"PlusIcon\">+ </span><div class=\"InnerLine\"></div></div><div class=\"token-line Storytelling\" data-explanation-code-line-id=\"1\" style=\"position: absolute; left: 0px; top: 7539px; height: 21px; width: 100%;\"><span class=\"LineTo\">482</span><span class=\"token plain\">\t\t\t\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">this</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">hooks</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">afterEmit</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">callAsync</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token plain\">compilation</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token plain\"> </span><span class=\"token parameter\">err</span><span class=\"token plain\"> </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=&gt;</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 7560px; height: 21px; width: 100%;\"><span class=\"LineTo\">483</span><span class=\"token plain\">\t\t\t\t\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">if</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token plain\">err</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"> </span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">return</span><span class=\"token plain\"> </span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">callback</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token plain\">err</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">;</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 7581px; height: 21px; width: 100%;\"><span class=\"LineTo\">484</span><span class=\"token plain\" style=\"display: inline-block;\"></span></div></div></div></div><div class=\"resize-triggers\"><div class=\"expand-trigger\"><div style=\"width: 677px; height: 168px;\"></div></div><div class=\"contract-trigger\"></div></div></pre></div></div><div class=\"ExplanationRoot react-draggable\" data-root-id=\"explanation-0\" data-snapshot-play-item=\"explanation\" data-snapshot-play-group=\"1\" data-position-x=\"199\" data-position-y=\"97\" style=\"transform: translate(199px, 97px);\"><div class=\"ExplanationContainer\"><div class=\"Header\"><strong class=\"Drag\"></strong><a class=\"MenuButton\"><span role=\"img\" aria-label=\"menu\" class=\"anticon anticon-menu\"><svg viewBox=\"64 64 896 896\" focusable=\"false\" data-icon=\"menu\" width=\"1em\" height=\"1em\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M904 160H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0 624H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0-312H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8z\"></path></svg></span></a></div><div class=\"ExplanationContent\"><pre>Using a simple \"pub-sub\" mechanism, performance evaluation plugin `SizeLimitsPlugin` can be loosely hooked into compilation flow.</pre><textarea spellcheck=\"false\" class=\"InputArea ScrollbarWin\" placeholder=\"Enter explanation here...\">Using a simple \"pub-sub\" mechanism, performance evaluation plugin `SizeLimitsPlugin` can be loosely hooked into compilation flow.</textarea></div></div></div><div class=\"ExplanationRoot react-draggable\" data-order-number=\"0\" data-root-id=\"explanation-1\" data-snapshot-play-item=\"explanation\" data-snapshot-play-group=\"1\" data-position-x=\"375\" data-position-y=\"494\" style=\"transform: translate(375px, 494px);\"><div class=\"ExplanationContainer isOrderNumber\"><div class=\"Header\"><strong class=\"Drag isOrderNumber\"></strong><a class=\"MenuButton isOrderNumber\"><span role=\"img\" aria-label=\"menu\" class=\"anticon anticon-menu\"><svg viewBox=\"64 64 896 896\" focusable=\"false\" data-icon=\"menu\" width=\"1em\" height=\"1em\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M904 160H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0 624H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0-312H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8z\"></path></svg></span></a></div><div class=\"ExplanationContent isOrderNumber\"><pre>0</pre><input spellcheck=\"false\" class=\"InputArea\" placeholder=\"0\" maxlength=\"2\" value=\"0\"></div></div></div><div class=\"ExplanationRoot react-draggable\" data-order-number=\"1\" data-root-id=\"explanation-2\" data-snapshot-play-item=\"explanation\" data-snapshot-play-group=\"1\" data-position-x=\"448\" data-position-y=\"37\" style=\"transform: translate(448px, 37px);\"><div class=\"ExplanationContainer isOrderNumber\"><div class=\"Header\"><strong class=\"Drag isOrderNumber\"></strong><a class=\"MenuButton isOrderNumber\"><span role=\"img\" aria-label=\"menu\" class=\"anticon anticon-menu\"><svg viewBox=\"64 64 896 896\" focusable=\"false\" data-icon=\"menu\" width=\"1em\" height=\"1em\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M904 160H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0 624H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0-312H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8z\"></path></svg></span></a></div><div class=\"ExplanationContent isOrderNumber\"><pre>1</pre><input spellcheck=\"false\" class=\"InputArea\" placeholder=\"0\" maxlength=\"2\" value=\"1\"></div></div></div><div class=\"ExplanationRoot react-draggable\" data-order-number=\"2\" data-root-id=\"explanation-3\" data-snapshot-play-item=\"explanation\" data-snapshot-play-group=\"3\" data-position-x=\"463\" data-position-y=\"105\" style=\"transform: translate(463px, 105px);\"><div class=\"ExplanationContainer isOrderNumber\"><div class=\"Header\"><strong class=\"Drag isOrderNumber\"></strong><a class=\"MenuButton isOrderNumber\"><span role=\"img\" aria-label=\"menu\" class=\"anticon anticon-menu\"><svg viewBox=\"64 64 896 896\" focusable=\"false\" data-icon=\"menu\" width=\"1em\" height=\"1em\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M904 160H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0 624H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0-312H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8z\"></path></svg></span></a></div><div class=\"ExplanationContent isOrderNumber\"><pre>2</pre><input spellcheck=\"false\" class=\"InputArea\" placeholder=\"0\" maxlength=\"2\" value=\"2\"></div></div></div><div class=\"ExplanationRoot react-draggable\" data-order-number=\"3\" data-root-id=\"explanation-4\" data-snapshot-play-item=\"explanation\" data-snapshot-play-group=\"4\" data-position-x=\"455\" data-position-y=\"191\" style=\"transform: translate(455px, 191px);\"><div class=\"ExplanationContainer isOrderNumber\"><div class=\"Header\"><strong class=\"Drag isOrderNumber\"></strong><a class=\"MenuButton isOrderNumber\"><span role=\"img\" aria-label=\"menu\" class=\"anticon anticon-menu\"><svg viewBox=\"64 64 896 896\" focusable=\"false\" data-icon=\"menu\" width=\"1em\" height=\"1em\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M904 160H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0 624H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0-312H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8z\"></path></svg></span></a></div><div class=\"ExplanationContent isOrderNumber\"><pre>3</pre><input spellcheck=\"false\" class=\"InputArea\" placeholder=\"0\" maxlength=\"2\" value=\"3\"></div></div></div><div data-root-id=\"note-0\" data-snapshot-play-item=\"note\" data-snapshot-play-group=\"5\" data-position-x=\"122\" data-position-y=\"243\" class=\"NoteRoot undefined react-draggable\" style=\"transform: translate(122px, 243px);\"><div class=\"NoteContainer\"><div class=\"Header\"><strong class=\"Drag\"></strong><a class=\"Btn\"><span role=\"img\" aria-label=\"menu\" tabindex=\"-1\" class=\"anticon anticon-menu\"><svg viewBox=\"64 64 896 896\" focusable=\"false\" data-icon=\"menu\" width=\"1em\" height=\"1em\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M904 160H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0 624H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0-312H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8z\"></path></svg></span></a><a class=\"Btn\"><span role=\"img\" aria-label=\"close\" class=\"anticon anticon-close\"><svg viewBox=\"64 64 896 896\" focusable=\"false\" data-icon=\"close\" width=\"1em\" height=\"1em\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M563.8 512l262.5-312.9c4.4-5.2.7-13.1-6.1-13.1h-79.8c-4.7 0-9.2 2.1-12.3 5.7L511.6 449.8 295.1 191.7c-3-3.6-7.5-5.7-12.3-5.7H203c-6.8 0-10.5 7.9-6.1 13.1L459.4 512 196.9 824.9A7.95 7.95 0 00203 838h79.8c4.7 0 9.2-2.1 12.3-5.7l216.5-258.1 216.5 258.1c3 3.6 7.5 5.7 12.3 5.7h79.8c6.8 0 10.5-7.9 6.1-13.1L563.8 512z\"></path></svg></span></a></div><div class=\"NoteContent\"><pre>`Compiler` calls (0)\n asynchronously `afterEmit` event (providing \"compilation\" instance).\n`SizeLimitsPlugin` subscribes (1) to that to evaluate oversized chunks.</pre><textarea spellcheck=\"true\" class=\"InputArea ScrollbarWin\">`Compiler` calls (0)\n asynchronously `afterEmit` event (providing \"compilation\" instance).\n`SizeLimitsPlugin` subscribes (1) to that to evaluate oversized chunks.</textarea></div></div></div>",
+      "author": {
+        "displayName": "Bohdan Liashenko"
+      },
+      "projects": [
+        {
+          "path": "https://github.com/webpack/webpack",
+          "name": "webpack@4.43.0"
+        }
+      ],
+      "userChoiceState": {
+        "dataBus": {
+          "storyTellingConnections": [
+            {
+              "from": {
+                "direction": "from",
+                "path": "lib/Compiler.js",
+                "lineNumber": 482,
+                "type": "connection",
+                "namespace": [
+                  "lib"
+                ],
+                "involvedNodesPathList": [
+                  "lib/Compiler.js",
+                  "lib/performance/SizeLimitsPlugin.js"
+                ],
+                "id": 0,
+                "playGroup": 1
+              },
+              "to": {
+                "direction": "to",
+                "path": "lib/performance/SizeLimitsPlugin.js",
+                "lineNumber": 32,
+                "type": "connection",
+                "namespace": [
+                  "lib"
+                ],
+                "involvedNodesPathList": [
+                  "lib/Compiler.js",
+                  "lib/performance/SizeLimitsPlugin.js"
+                ],
+                "id": 0,
+                "playGroup": 1
+              },
+              "path": "lib/Compiler.js#482|lib/performance/SizeLimitsPlugin.js#32",
+              "type": "connection",
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/Compiler.js",
+                "lib/performance/SizeLimitsPlugin.js"
+              ],
+              "id": 0,
+              "playGroup": 1
+            }
+          ],
+          "explanationTooltipsMap": {
+            "lib/Compiler.js#482|lib/performance/SizeLimitsPlugin.js#32": {
+              "path": "lib/Compiler.js#482|lib/performance/SizeLimitsPlugin.js#32",
+              "type": "explanation",
+              "isOnConnection": true,
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/Compiler.js",
+                "lib/performance/SizeLimitsPlugin.js"
+              ],
+              "playGroup": 1,
+              "id": 0,
+              "originalPoint": {
+                "x": 408.10499999999996,
+                "y": -65.5
+              },
+              "positionPoint": {
+                "x": 386.10499999999996,
+                "y": -86.5
+              },
+              "positionPointWithOffset": {
+                "x": 387.10499999999996,
+                "y": -204.5
+              },
+              "content": "Using a simple \"pub-sub\" mechanism, performance evaluation plugin `SizeLimitsPlugin` can be loosely hooked into compilation flow.",
+              "dragging": false,
+              "positionOffset": {
+                "x": 1,
+                "y": -118
+              }
+            },
+            "lib/Compiler.js#482": {
+              "path": "lib/Compiler.js#482",
+              "type": "explanation",
+              "isOnConnection": false,
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/Compiler.js"
+              ],
+              "playGroup": 1,
+              "id": 1,
+              "lineNumber": 482,
+              "originalPoint": {
+                "originalOffset": 7518,
+                "x": 430.02,
+                "y": 164
+              },
+              "positionPoint": {
+                "x": 408.02,
+                "y": 143
+              },
+              "positionPointWithOffset": {
+                "x": 388.02,
+                "y": 157
+              },
+              "isOrderNumber": true,
+              "content": "0",
+              "dragging": false,
+              "positionOffset": {
+                "x": -20,
+                "y": 14
+              }
+            },
+            "lib/performance/SizeLimitsPlugin.js#32": {
+              "path": "lib/performance/SizeLimitsPlugin.js#32",
+              "type": "explanation",
+              "isOnConnection": false,
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/performance/SizeLimitsPlugin.js"
+              ],
+              "playGroup": 1,
+              "id": 2,
+              "lineNumber": 32,
+              "isOrderNumber": true,
+              "content": "1",
+              "originalPoint": {
+                "originalOffset": 630,
+                "x": 488.18999999999994,
+                "y": -301
+              },
+              "positionPoint": {
+                "x": 466.18999999999994,
+                "y": -322
+              },
+              "positionPointWithOffset": {
+                "x": 461.18999999999994,
+                "y": -300
+              },
+              "dragging": false,
+              "positionOffset": {
+                "x": -5,
+                "y": 22
+              }
+            },
+            "lib/performance/SizeLimitsPlugin.js#75": {
+              "path": "lib/performance/SizeLimitsPlugin.js#75",
+              "type": "explanation",
+              "isOnConnection": false,
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/performance/SizeLimitsPlugin.js"
+              ],
+              "playGroup": 3,
+              "id": 3,
+              "lineNumber": 75,
+              "isOrderNumber": true,
+              "content": "2",
+              "originalPoint": {
+                "originalOffset": 693,
+                "x": 488.18999999999994,
+                "y": -238
+              },
+              "positionPoint": {
+                "x": 466.18999999999994,
+                "y": -259
+              },
+              "positionPointWithOffset": {
+                "x": 476.18999999999994,
+                "y": -232
+              },
+              "dragging": false,
+              "positionOffset": {
+                "x": 10,
+                "y": 27
+              }
+            },
+            "lib/performance/SizeLimitsPlugin.js#79": {
+              "path": "lib/performance/SizeLimitsPlugin.js#79",
+              "type": "explanation",
+              "isOnConnection": false,
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/performance/SizeLimitsPlugin.js"
+              ],
+              "playGroup": 4,
+              "id": 4,
+              "lineNumber": 79,
+              "isOrderNumber": true,
+              "content": "3",
+              "originalPoint": {
+                "originalOffset": 777,
+                "x": 488.18999999999994,
+                "y": -154
+              },
+              "positionPoint": {
+                "x": 466.18999999999994,
+                "y": -175
+              },
+              "positionPointWithOffset": {
+                "x": 468.18999999999994,
+                "y": -146
+              },
+              "dragging": false,
+              "positionOffset": {
+                "x": 2,
+                "y": 29
+              }
+            }
+          },
+          "notesList": [
+            {
+              "position": {
+                "x": 122,
+                "y": 243
+              },
+              "id": 0,
+              "playGroup": 5,
+              "type": "note",
+              "dragging": false,
+              "content": "`Compiler` calls (0)\n asynchronously `afterEmit` event (providing \"compilation\" instance).\n`SizeLimitsPlugin` subscribes (1) to that to evaluate oversized chunks."
+            }
+          ]
+        }
+      },
+      "size": {
+        "width": 1278,
+        "height": 758
+      }
+    },
+    {
+      "id": "15",
+      "aliasId": "15",
+      "namespace": "source-project-webpack-javascript",
+      "title": "Advanced Hooks flow",
+      "html": "<svg width=\"1662\" height=\"395\" xmlns=\"http://www.w3.org/2000/svg\" shape-rendering=\"optimizeSpeed\" class=\"SvgTree\"><rect x=\"0\" y=\"0\" width=\"1662\" height=\"395\" class=\"UnderLayer\"></rect><g class=\"Color1\" data-root-id=\"connection-0\" data-snapshot-play-item=\"connection\" data-snapshot-play-group=\"1\" data-position-x=\"900\" data-position-y=\"232.5\"><path class=\"StoryTellingNodesConnectionShadow\" shape-rendering=\"geometricPrecision\" d=\"M865 184 C936 173 864 292 937 283\"></path><path class=\"EdgeMouseHandler\" shape-rendering=\"geometricPrecision\" d=\"M864 183 C936 173 864 292 936 282\" data-connection-path=\"lib/Compilation.js|lib/FlagDependencyUsagePlugin.js\"></path><path class=\"StoryTellingNodesConnection\" shape-rendering=\"geometricPrecision\" d=\"M864 183 C936 173 864 292 936 282\"></path><circle cx=\"865\" cy=\"184\" r=\"3.5\" shape-rendering=\"geometricPrecision\" class=\"StoryTellingNodeSourceShadow\"></circle><circle cx=\"864\" cy=\"183\" r=\"3\" shape-rendering=\"geometricPrecision\" class=\"StoryTellingNodeSource\"></circle><svg version=\"1.1\" x=\"930.5\" y=\"276.5\" viewBox=\"0 0 448.011 448.011\" width=\"13\" height=\"13\" shape-rendering=\"geometricPrecision\" class=\"ArrowShadow\"><g><path d=\"M438.731,209.463l-416-192c-6.624-3.008-14.528-1.216-19.136,4.48c-4.64,5.696-4.8,13.792-0.384,19.648l136.8,182.4    l-136.8,182.4c-4.416,5.856-4.256,13.984,0.352,19.648c3.104,3.872,7.744,5.952,12.448,5.952c2.272,0,4.544-0.48,6.688-1.472    l416-192c5.696-2.624,9.312-8.288,9.312-14.528S444.395,212.087,438.731,209.463z\" style=\"transform: rotate(-7.90716deg); transform-origin: 50% 50%;\"></path></g></svg><svg version=\"1.1\" x=\"929.5\" y=\"275.5\" viewBox=\"0 0 448.011 448.011\" width=\"13\" height=\"13\" shape-rendering=\"geometricPrecision\" class=\"ArrowIcon\"><g><path d=\"M438.731,209.463l-416-192c-6.624-3.008-14.528-1.216-19.136,4.48c-4.64,5.696-4.8,13.792-0.384,19.648l136.8,182.4    l-136.8,182.4c-4.416,5.856-4.256,13.984,0.352,19.648c3.104,3.872,7.744,5.952,12.448,5.952c2.272,0,4.544-0.48,6.688-1.472    l416-192c5.696-2.624,9.312-8.288,9.312-14.528S444.395,212.087,438.731,209.463z\" style=\"transform: rotate(-7.90716deg); transform-origin: 50% 50%;\"></path></g></svg>)</g><g class=\"Color3\" data-root-id=\"connection-1\" data-snapshot-play-item=\"connection\" data-snapshot-play-group=\"2\" data-position-x=\"900\" data-position-y=\"132\"><path class=\"StoryTellingNodesConnectionShadow\" shape-rendering=\"geometricPrecision\" d=\"M865 184 C936 193 864 71 937 82\"></path><path class=\"EdgeMouseHandler\" shape-rendering=\"geometricPrecision\" d=\"M864 183 C936 193 864 71 936 81\" data-connection-path=\"lib/Compilation.js|lib/optimize/SideEffectsFlagPlugin.js\"></path><path class=\"StoryTellingNodesConnection\" shape-rendering=\"geometricPrecision\" d=\"M864 183 C936 193 864 71 936 81\"></path><circle cx=\"865\" cy=\"184\" r=\"3.5\" shape-rendering=\"geometricPrecision\" class=\"StoryTellingNodeSourceShadow\"></circle><circle cx=\"864\" cy=\"183\" r=\"3\" shape-rendering=\"geometricPrecision\" class=\"StoryTellingNodeSource\"></circle><svg version=\"1.1\" x=\"930.5\" y=\"75.5\" viewBox=\"0 0 448.011 448.011\" width=\"13\" height=\"13\" shape-rendering=\"geometricPrecision\" class=\"ArrowShadow\"><g><path d=\"M438.731,209.463l-416-192c-6.624-3.008-14.528-1.216-19.136,4.48c-4.64,5.696-4.8,13.792-0.384,19.648l136.8,182.4    l-136.8,182.4c-4.416,5.856-4.256,13.984,0.352,19.648c3.104,3.872,7.744,5.952,12.448,5.952c2.272,0,4.544-0.48,6.688-1.472    l416-192c5.696-2.624,9.312-8.288,9.312-14.528S444.395,212.087,438.731,209.463z\" style=\"transform: rotate(7.90716deg); transform-origin: 50% 50%;\"></path></g></svg><svg version=\"1.1\" x=\"929.5\" y=\"74.5\" viewBox=\"0 0 448.011 448.011\" width=\"13\" height=\"13\" shape-rendering=\"geometricPrecision\" class=\"ArrowIcon\"><g><path d=\"M438.731,209.463l-416-192c-6.624-3.008-14.528-1.216-19.136,4.48c-4.64,5.696-4.8,13.792-0.384,19.648l136.8,182.4    l-136.8,182.4c-4.416,5.856-4.256,13.984,0.352,19.648c3.104,3.872,7.744,5.952,12.448,5.952c2.272,0,4.544-0.48,6.688-1.472    l416-192c5.696-2.624,9.312-8.288,9.312-14.528S444.395,212.087,438.731,209.463z\" style=\"transform: rotate(7.90716deg); transform-origin: 50% 50%;\"></path></g></svg>)</g><polyline data-explanation-line-id=\"0\" shape-rendering=\"geometricPrecision\" points=\"242,180, 220,109\" class=\"ExplanationConnection\" stroke-dasharray=\"2\" stroke-linecap=\"round\"></polyline><polyline data-explanation-line-id=\"1\" shape-rendering=\"geometricPrecision\" points=\"900,132, 840,50\" class=\"ExplanationConnection\" stroke-dasharray=\"2\" stroke-linecap=\"round\"></polyline><polyline data-explanation-line-id=\"2\" shape-rendering=\"geometricPrecision\" points=\"900,233, 886,288\" class=\"ExplanationConnection\" stroke-dasharray=\"2\" stroke-linecap=\"round\"></polyline></svg><div data-root-id=\"openedCodeFile-0\" data-snapshot-play-item=\"openedCodeFile\" data-snapshot-play-group=\"2\" data-position-x=\"942\" data-position-y=\"20\" data-file-path=\"lib/optimize/SideEffectsFlagPlugin.js\" class=\"CodePreviewContainer react-draggable\" style=\"height: 150px; width: 700px; transform: translate(942px, 20px);\"><div class=\"Header\"><div class=\"FilePath\"><div class=\"FilePathItself\"><a href=\"https://github.com/webpack/webpack/blob/v4.43.0/lib/optimize/SideEffectsFlagPlugin.js\" target=\"_blank\">lib / optimize / SideEffectsFlagPlugin.js</a></div></div></div><div class=\"Code\" data-scroll-top=\"1051\"><pre class=\"CodePre prism-code language-jsx\" style=\"color: rgb(214, 222, 235); background-color: rgb(1, 22, 39); position: relative;\"><div style=\"overflow: visible; height: 0px; width: 0px;\"><div class=\"CodeLinesList ScrollbarWin ScrollbarWinLight\" style=\"position: relative; height: 107px; width: 696px; overflow: auto; will-change: transform; direction: ltr;\"><div style=\"height: 3570px; width: 100%; position: absolute; top: -1051px;\"><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 1008px; height: 21px; width: 100%;\"><span class=\"LineTo\">49</span><span class=\"token plain\">\t\t\t</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">}</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">;</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 1029px; height: 21px; width: 100%;\"><span class=\"LineTo\">50</span><span class=\"token plain\">\t\t</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">}</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">;</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 1050px; height: 21px; width: 100%;\"><span class=\"LineTo\">51</span><span class=\"token plain\">\t\tcompiler</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">hooks</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">compilation</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">tap</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token string\" style=\"color: rgb(173, 219, 103);\">\"SideEffectsFlagPlugin\"</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token plain\"> </span><span class=\"token parameter\">compilation</span><span class=\"token plain\"> </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=&gt;</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line Storytelling\" data-connection-code-line-id=\"1\" style=\"position: absolute; left: 0px; top: 1071px; height: 21px; width: 100%;\"><span class=\"LineTo Color3\">52</span><span class=\"token plain\">\t\t\tcompilation</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">hooks</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">optimizeDependencies</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">tap</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 1092px; height: 21px; width: 100%;\"><span class=\"LineTo\">53</span><span class=\"token plain\">\t\t\t\t</span><span class=\"token string\" style=\"color: rgb(173, 219, 103);\">\"SideEffectsFlagPlugin\"</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 1113px; height: 21px; width: 100%;\"><span class=\"LineTo\">54</span><span class=\"token plain\">\t\t\t\t</span><span class=\"token parameter\">modules</span><span class=\"token plain\"> </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=&gt;</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 1134px; height: 21px; width: 100%;\"><span class=\"LineTo\">55</span><span class=\"token plain\">\t\t\t\t\t</span><span class=\"token comment\" style=\"color: rgb(99, 119, 119); font-style: italic;\">/** @type {Map&lt;Module, Map&lt;string, ExportInModule&gt;&gt;} */</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 1155px; height: 21px; width: 100%;\"><span class=\"LineTo\">56</span><span class=\"token plain\">\t\t\t\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">const</span><span class=\"token plain\"> reexportMaps </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=</span><span class=\"token plain\"> </span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">new</span><span class=\"token plain\"> </span><span class=\"token class-name\" style=\"color: rgb(255, 203, 139);\">Map</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">;</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 1176px; height: 21px; width: 100%;\"><span class=\"LineTo\">57</span><span class=\"token plain\" style=\"display: inline-block;\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 1197px; height: 21px; width: 100%;\"><span class=\"LineTo\">58</span><span class=\"token plain\">\t\t\t\t\t</span><span class=\"token comment\" style=\"color: rgb(99, 119, 119); font-style: italic;\">// Capture reexports of sideEffectFree modules</span><span class=\"token plain\"></span></div></div></div></div><div class=\"resize-triggers\"><div class=\"expand-trigger\"><div style=\"width: 697px; height: 108px;\"></div></div><div class=\"contract-trigger\"></div></div></pre></div></div><div data-root-id=\"openedCodeFile-2\" data-snapshot-play-item=\"openedCodeFile\" data-snapshot-play-group=\"1\" data-position-x=\"942\" data-position-y=\"240\" data-file-path=\"lib/FlagDependencyUsagePlugin.js\" class=\"CodePreviewContainer react-draggable\" style=\"height: 130px; width: 630px; transform: translate(942px, 240px);\"><div class=\"Header\"><div class=\"FilePath\"><div class=\"FilePathItself\"><a href=\"https://github.com/webpack/webpack/blob/v4.43.0/lib/FlagDependencyUsagePlugin.js\" target=\"_blank\">lib / FlagDependencyUsagePlugin.js</a></div></div></div><div class=\"Code\" data-scroll-top=\"566\"><pre class=\"CodePre prism-code language-jsx\" style=\"color: rgb(214, 222, 235); background-color: rgb(1, 22, 39); position: relative;\"><div style=\"overflow: visible; height: 0px; width: 0px;\"><div class=\"CodeLinesList ScrollbarWin ScrollbarWinLight\" style=\"position: relative; height: 87px; width: 626px; overflow: auto; will-change: transform; direction: ltr;\"><div style=\"height: 2457px; width: 100%; position: absolute; top: -566px;\"><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 504px; height: 21px; width: 100%;\"><span class=\"LineTo\">25</span><span class=\"token plain\"></span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">class</span><span class=\"token plain\"> </span><span class=\"token class-name\" style=\"color: rgb(255, 203, 139);\">FlagDependencyUsagePlugin</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 525px; height: 21px; width: 100%;\"><span class=\"LineTo\">26</span><span class=\"token plain\">\t</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">apply</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token parameter\">compiler</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 546px; height: 21px; width: 100%;\"><span class=\"LineTo\">27</span><span class=\"token plain\">\t\tcompiler</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">hooks</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">compilation</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">tap</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token string\" style=\"color: rgb(173, 219, 103);\">\"FlagDependencyUsagePlugin\"</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token plain\"> </span><span class=\"token parameter\">compilation</span><span class=\"token plain\"> </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=&gt;</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line Storytelling\" data-connection-code-line-id=\"0\" style=\"position: absolute; left: 0px; top: 567px; height: 21px; width: 100%;\"><span class=\"LineTo\">28</span><span class=\"token plain\">\t\t\tcompilation</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">hooks</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">optimizeDependencies</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">tap</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 588px; height: 21px; width: 100%;\"><span class=\"LineTo\">29</span><span class=\"token plain\">\t\t\t\t</span><span class=\"token string\" style=\"color: rgb(173, 219, 103);\">\"FlagDependencyUsagePlugin\"</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 609px; height: 21px; width: 100%;\"><span class=\"LineTo\">30</span><span class=\"token plain\">\t\t\t\t</span><span class=\"token parameter\">modules</span><span class=\"token plain\"> </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=&gt;</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 630px; height: 21px; width: 100%;\"><span class=\"LineTo\">31</span><span class=\"token plain\">\t\t\t\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">const</span><span class=\"token plain\"> </span><span class=\"token function-variable function\" style=\"color: rgb(130, 170, 255);\">processModule</span><span class=\"token plain\"> </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token parameter\">module</span><span class=\"token parameter punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token parameter\"> usedExports</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"> </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=&gt;</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 651px; height: 21px; width: 100%;\"><span class=\"LineTo\">32</span><span class=\"token plain\">\t\t\t\t\t\tmodule</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">used </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=</span><span class=\"token plain\"> </span><span class=\"token boolean\" style=\"color: rgb(255, 88, 116);\">true</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">;</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 672px; height: 21px; width: 100%;\"><span class=\"LineTo\">33</span><span class=\"token plain\">\t\t\t\t\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">if</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token plain\">module</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">usedExports </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">===</span><span class=\"token plain\"> </span><span class=\"token boolean\" style=\"color: rgb(255, 88, 116);\">true</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"> </span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">return</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">;</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 693px; height: 21px; width: 100%;\"><span class=\"LineTo\">34</span><span class=\"token plain\">\t\t\t\t\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">if</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token plain\">usedExports </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">===</span><span class=\"token plain\"> </span><span class=\"token boolean\" style=\"color: rgb(255, 88, 116);\">true</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div></div></div></div><div class=\"resize-triggers\"><div class=\"expand-trigger\"><div style=\"width: 627px; height: 88px;\"></div></div><div class=\"contract-trigger\"></div></div></pre></div></div><div data-root-id=\"openedCodeFile-3\" data-snapshot-play-item=\"openedCodeFile\" data-snapshot-play-group=\"0\" data-position-x=\"242\" data-position-y=\"100\" data-file-path=\"lib/Compilation.js\" class=\"CodePreviewContainer react-draggable\" style=\"height: 160px; width: 620px; transform: translate(242px, 100px);\"><div class=\"Header\"><div class=\"FilePath\"><div class=\"FilePathItself\"><a href=\"https://github.com/webpack/webpack/blob/v4.43.0/lib/Compilation.js\" target=\"_blank\">lib / Compilation.js</a></div></div></div><div class=\"Code\" data-scroll-top=\"26985\"><pre class=\"CodePre prism-code language-jsx\" style=\"color: rgb(214, 222, 235); background-color: rgb(1, 22, 39); position: relative;\"><div style=\"overflow: visible; height: 0px; width: 0px;\"><div class=\"CodeLinesList ScrollbarWin ScrollbarWinLight\" style=\"position: relative; height: 117px; width: 616px; overflow: auto; will-change: transform; direction: ltr;\"><div style=\"height: 48888px; width: 100%; position: absolute; top: -26985px;\"><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 26943px; height: 21px; width: 100%;\"><span class=\"LineTo\">1284</span><span class=\"token plain\">\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">this</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">hooks</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">seal</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">call</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">;</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 26964px; height: 21px; width: 100%;\"><span class=\"LineTo\">1285</span><span class=\"token plain\" style=\"display: inline-block;\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 26985px; height: 21px; width: 100%;\"><span class=\"LineTo\">1286</span><span class=\"token plain\">\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">while</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 27006px; height: 21px; width: 100%;\"><span class=\"LineTo\">1287</span><span class=\"token plain\">\t\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">this</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">hooks</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">optimizeDependenciesBasic</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">call</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">this</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">modules</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"> </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">||</span><span class=\"token plain\"></span></div><div class=\"token-line Storytelling\" data-explanation-code-line-id=\"0\" style=\"position: absolute; left: 0px; top: 27027px; height: 21px; width: 100%;\"><span class=\"LineTo Color3\">1288</span><span class=\"token plain\">\t\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">this</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">hooks</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">optimizeDependencies</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">call</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">this</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">modules</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"> </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">||</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 27048px; height: 21px; width: 100%;\"><span class=\"LineTo\">1289</span><span class=\"token plain\">\t\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">this</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">hooks</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">optimizeDependenciesAdvanced</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">call</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">this</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">modules</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 27069px; height: 21px; width: 100%;\"><span class=\"LineTo\">1290</span><span class=\"token plain\">\t\t</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 27090px; height: 21px; width: 100%;\"><span class=\"LineTo\">1291</span><span class=\"token plain\">\t\t\t</span><span class=\"token comment\" style=\"color: rgb(99, 119, 119); font-style: italic;\">/* empty */</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 27111px; height: 21px; width: 100%;\"><span class=\"LineTo\">1292</span><span class=\"token plain\">\t\t</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">}</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 27132px; height: 21px; width: 100%;\"><span class=\"LineTo\">1293</span><span class=\"token plain\">\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">this</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">hooks</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">afterOptimizeDependencies</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">call</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">this</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">modules</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">;</span><span class=\"token plain\"></span></div></div></div></div><div class=\"resize-triggers\"><div class=\"expand-trigger\"><div style=\"width: 617px; height: 118px;\"></div></div><div class=\"contract-trigger\"></div></div></pre></div></div><div class=\"ExplanationRoot Color3 react-draggable\" data-root-id=\"explanation-0\" data-snapshot-play-item=\"explanation\" data-snapshot-play-group=\"0\" data-position-x=\"22\" data-position-y=\"100\" style=\"transform: translate(22px, 100px);\"><div class=\"ExplanationContainer hasExtraStep\"><div class=\"Header\"><strong class=\"Drag\"></strong><a class=\"MenuButton\"><span role=\"img\" aria-label=\"menu\" class=\"anticon anticon-menu\"><svg viewBox=\"64 64 896 896\" focusable=\"false\" data-icon=\"menu\" width=\"1em\" height=\"1em\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M904 160H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0 624H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0-312H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8z\"></path></svg></span></a></div><div class=\"ExplanationContent\"><pre>`optimizeDependencies` is an instance of `SyncBailHook`.</pre><textarea spellcheck=\"false\" class=\"InputArea ScrollbarWin\" placeholder=\"Enter explanation here...\">0) `optimizeDependencies` is an instance of `SyncBailHook`.</textarea></div><div data-order-number=\"0\" class=\"ExtraOrderNumber\"><pre>0</pre></div></div></div><div class=\"ExplanationRoot react-draggable\" data-root-id=\"explanation-1\" data-snapshot-play-item=\"explanation\" data-snapshot-play-group=\"2\" data-position-x=\"642\" data-position-y=\"41\" style=\"transform: translate(642px, 41px);\"><div class=\"ExplanationContainer hasExtraStep\"><div class=\"Header\"><strong class=\"Drag\"></strong><a class=\"MenuButton\"><span role=\"img\" aria-label=\"menu\" class=\"anticon anticon-menu\"><svg viewBox=\"64 64 896 896\" focusable=\"false\" data-icon=\"menu\" width=\"1em\" height=\"1em\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M904 160H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0 624H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0-312H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8z\"></path></svg></span></a></div><div class=\"ExplanationContent\"><pre>`SideEffectsFlagPlugin` handling specified side-effects from webpack options.</pre><textarea spellcheck=\"false\" class=\"InputArea ScrollbarWin\" placeholder=\"Enter explanation here...\">2) `SideEffectsFlagPlugin` handling specified side-effects from webpack options.</textarea></div><div data-order-number=\"2\" class=\"ExtraOrderNumber\"><pre>2</pre></div></div></div><div class=\"ExplanationRoot react-draggable\" data-root-id=\"explanation-2\" data-snapshot-play-item=\"explanation\" data-snapshot-play-group=\"1\" data-position-x=\"688\" data-position-y=\"279\" style=\"transform: translate(688px, 279px);\"><div class=\"ExplanationContainer hasExtraStep\"><div class=\"Header\"><strong class=\"Drag\"></strong><a class=\"MenuButton\"><span role=\"img\" aria-label=\"menu\" class=\"anticon anticon-menu\"><svg viewBox=\"64 64 896 896\" focusable=\"false\" data-icon=\"menu\" width=\"1em\" height=\"1em\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M904 160H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0 624H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0-312H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8z\"></path></svg></span></a></div><div class=\"ExplanationContent\"><pre>`FlagDependencyUsagePlugin` optimize chunks by identifying unused dependencis.</pre><textarea spellcheck=\"false\" class=\"InputArea ScrollbarWin\" placeholder=\"Enter explanation here...\">1) `FlagDependencyUsagePlugin` optimize chunks by identifying unused dependencis.</textarea></div><div data-order-number=\"1\" class=\"ExtraOrderNumber\"><pre>1</pre></div></div></div>",
+      "author": {
+        "displayName": "Bohdan Liashenko"
+      },
+      "projects": [
+        {
+          "path": "https://github.com/webpack/webpack",
+          "name": "webpack@4.43.0"
+        }
+      ],
+      "userChoiceState": {
+        "dataBus": {
+          "storyTellingConnections": [
+            {
+              "from": {
+                "direction": "from",
+                "path": "lib/Compilation.js",
+                "lineNumber": 1288,
+                "type": "connection",
+                "namespace": [
+                  "lib"
+                ],
+                "involvedNodesPathList": [
+                  "lib/Compilation.js",
+                  "lib/FlagDependencyUsagePlugin.js"
+                ],
+                "id": 0,
+                "playGroup": 1
+              },
+              "to": {
+                "direction": "to",
+                "path": "lib/FlagDependencyUsagePlugin.js",
+                "lineNumber": 28,
+                "type": "connection",
+                "namespace": [
+                  "lib"
+                ],
+                "involvedNodesPathList": [
+                  "lib/Compilation.js",
+                  "lib/FlagDependencyUsagePlugin.js"
+                ],
+                "id": 0,
+                "playGroup": 1
+              },
+              "path": "lib/Compilation.js#1288|lib/FlagDependencyUsagePlugin.js#28",
+              "type": "connection",
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/Compilation.js",
+                "lib/FlagDependencyUsagePlugin.js"
+              ],
+              "id": 0,
+              "playGroup": 1
+            },
+            {
+              "from": {
+                "direction": "from",
+                "path": "lib/Compilation.js",
+                "lineNumber": 1288,
+                "type": "connection",
+                "namespace": [
+                  "lib"
+                ],
+                "involvedNodesPathList": [
+                  "lib/Compilation.js",
+                  "lib/optimize/SideEffectsFlagPlugin.js"
+                ],
+                "id": 1,
+                "playGroup": 2,
+                "color": "Color3"
+              },
+              "to": {
+                "direction": "to",
+                "path": "lib/optimize/SideEffectsFlagPlugin.js",
+                "lineNumber": 52,
+                "type": "connection",
+                "namespace": [
+                  "lib"
+                ],
+                "involvedNodesPathList": [
+                  "lib/Compilation.js",
+                  "lib/optimize/SideEffectsFlagPlugin.js"
+                ],
+                "id": 1,
+                "playGroup": 2,
+                "color": "Color3"
+              },
+              "path": "lib/Compilation.js#1288|lib/optimize/SideEffectsFlagPlugin.js#52",
+              "type": "connection",
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/Compilation.js",
+                "lib/optimize/SideEffectsFlagPlugin.js"
+              ],
+              "id": 1,
+              "playGroup": 2,
+              "color": "Color3"
+            }
+          ],
+          "explanationTooltipsMap": {
+            "lib/Compilation.js#1288": {
+              "path": "lib/Compilation.js#1288",
+              "type": "explanation",
+              "isOnConnection": false,
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/Compilation.js"
+              ],
+              "playGroup": 0,
+              "id": 0,
+              "lineNumber": 1288,
+              "originalPoint": {
+                "originalOffset": 27006,
+                "x": 0,
+                "y": 160
+              },
+              "positionPoint": {
+                "x": -22,
+                "y": 139
+              },
+              "positionPointWithOffset": {
+                "x": -22,
+                "y": 139
+              },
+              "content": "0) `optimizeDependencies` is an instance of `SyncBailHook`.",
+              "color": "Color3"
+            },
+            "lib/Compilation.js#1288|lib/optimize/SideEffectsFlagPlugin.js#52": {
+              "path": "lib/Compilation.js#1288|lib/optimize/SideEffectsFlagPlugin.js#52",
+              "codeAround": null,
+              "type": "explanation",
+              "isOnConnection": true,
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/Compilation.js",
+                "lib/optimize/SideEffectsFlagPlugin.js"
+              ],
+              "playGroup": 2,
+              "id": 1,
+              "originalPoint": {
+                "x": 658,
+                "y": 112
+              },
+              "positionPoint": {
+                "x": 636,
+                "y": 91
+              },
+              "positionPointWithOffset": {
+                "x": 598,
+                "y": 80
+              },
+              "dragging": false,
+              "positionOffset": {
+                "x": -38,
+                "y": -11
+              },
+              "content": "2) `SideEffectsFlagPlugin` handling specified side-effects from webpack options."
+            },
+            "lib/Compilation.js#1288|lib/FlagDependencyUsagePlugin.js#28": {
+              "path": "lib/Compilation.js#1288|lib/FlagDependencyUsagePlugin.js#28",
+              "codeAround": null,
+              "type": "explanation",
+              "isOnConnection": true,
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/Compilation.js",
+                "lib/FlagDependencyUsagePlugin.js"
+              ],
+              "playGroup": 1,
+              "id": 2,
+              "originalPoint": {
+                "x": 658,
+                "y": 212.5
+              },
+              "positionPoint": {
+                "x": 636,
+                "y": 191.5
+              },
+              "positionPointWithOffset": {
+                "x": 644,
+                "y": 317.5
+              },
+              "dragging": false,
+              "positionOffset": {
+                "x": 8,
+                "y": 126
+              },
+              "content": "1) `FlagDependencyUsagePlugin` optimize chunks by identifying unused dependencis."
+            }
+          }
+        }
+      },
+      "size": {
+        "width": 1662,
+        "height": 395
+      }
+    },
+    {
+      "id": "16",
+      "aliasId": "16",
+      "namespace": "source-project-webpack-javascript",
+      "hidePlayerControls": true,
+      "title": "PubSub example",
+      "html": "<svg width=\"952\" height=\"315\" xmlns=\"http://www.w3.org/2000/svg\" shape-rendering=\"optimizeSpeed\" class=\"SvgTree\"><rect x=\"0\" y=\"0\" width=\"952\" height=\"315\" class=\"UnderLayer\"></rect><polyline data-explanation-line-id=\"0\" shape-rendering=\"geometricPrecision\" points=\"242,100, 220,29\" class=\"ExplanationConnection\" stroke-dasharray=\"2\" stroke-linecap=\"round\"></polyline><polyline data-explanation-line-id=\"0\" shape-rendering=\"geometricPrecision\" points=\"242,142, 220,29\" class=\"ExplanationConnection\" stroke-dasharray=\"2\" stroke-linecap=\"round\"></polyline><polyline data-explanation-line-id=\"0\" shape-rendering=\"geometricPrecision\" points=\"242,184, 220,29\" class=\"ExplanationConnection\" stroke-dasharray=\"2\" stroke-linecap=\"round\"></polyline><polyline data-explanation-line-id=\"3\" shape-rendering=\"geometricPrecision\" points=\"242,247, 220,176\" class=\"ExplanationConnection\" stroke-dasharray=\"2\" stroke-linecap=\"round\"></polyline></svg><div data-root-id=\"openedCodeFile-0\" data-snapshot-play-item=\"openedCodeFile\" data-snapshot-play-group=\"0\" data-position-x=\"242\" data-position-y=\"20\" data-file-path=\"lib/webpack.js\" class=\"CodePreviewContainer react-draggable\" style=\"height: 270px; width: 690px; transform: translate(242px, 20px);\"><div class=\"Header\"><div class=\"FilePath\"><div class=\"FilePathItself\"><a target=\"_blank\">example.js</a></div></div></div><div class=\"Code\"><pre class=\"CodePre prism-code language-jsx\" style=\"color: rgb(214, 222, 235); background-color: rgb(1, 22, 39); position: relative;\"><div style=\"overflow: visible; height: 0px; width: 0px;\"><div class=\"CodeLinesList ScrollbarWin ScrollbarWinLight\" style=\"position: relative; height: 227px; width: 686px; overflow: auto; will-change: transform; direction: ltr;\"><div style=\"height: 231px; width: 100%; position: absolute;\"><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 0px; height: 21px; width: 100%;\"><span class=\"LineTo\">1</span><span class=\"token comment\" style=\"color: rgb(99, 119, 119); font-style: italic;\">// pseudo code</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 21px; height: 21px; width: 100%;\"><span class=\"LineTo\">2</span><span class=\"token plain\" style=\"display: inline-block;\"></span></div><div class=\"token-line Storytelling\" data-explanation-code-line-id=\"0\" style=\"position: absolute; left: 0px; top: 42px; height: 21px; width: 100%;\"><span class=\"LineTo\">3</span><span class=\"token plain\">pubSub</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">subscribe</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token string\" style=\"color: rgb(173, 219, 103);\">'myEvent'</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"> </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=&gt;</span><span class=\"token plain\"> console</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">log</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token string\" style=\"color: rgb(173, 219, 103);\">'Handled by 1st subscriber'</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 63px; height: 21px; width: 100%;\"><span class=\"LineTo\">4</span><span class=\"token plain\" style=\"display: inline-block;\"></span></div><div class=\"token-line Storytelling\" data-explanation-code-line-id=\"0\" style=\"position: absolute; left: 0px; top: 84px; height: 21px; width: 100%;\"><span class=\"LineTo\">5</span><span class=\"token plain\">pubSub</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">subscribe</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token string\" style=\"color: rgb(173, 219, 103);\">'myEvent'</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"> </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=&gt;</span><span class=\"token plain\"> console</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">log</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token string\" style=\"color: rgb(173, 219, 103);\">'Handled by 2nd subscriber'</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 105px; height: 21px; width: 100%;\"><span class=\"LineTo\">6</span><span class=\"token plain\" style=\"display: inline-block;\"></span></div><div class=\"token-line Storytelling\" data-explanation-code-line-id=\"0\" style=\"position: absolute; left: 0px; top: 126px; height: 21px; width: 100%;\"><span class=\"LineTo\">7</span><span class=\"token plain\">pubSub</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">subscribe</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token string\" style=\"color: rgb(173, 219, 103);\">'myEvent'</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"> </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=&gt;</span><span class=\"token plain\"> console</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">log</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token string\" style=\"color: rgb(173, 219, 103);\">'Handled by 3rd subscriber'</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 147px; height: 21px; width: 100%;\"><span class=\"LineTo\">8</span><span class=\"token plain\" style=\"display: inline-block;\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 168px; height: 21px; width: 100%;\"><span class=\"LineTo\">9</span><span class=\"token plain\" style=\"display: inline-block;\"></span></div><div class=\"token-line Storytelling\" data-explanation-code-line-id=\"3\" style=\"position: absolute; left: 0px; top: 189px; height: 21px; width: 100%;\"><span class=\"LineTo\">10</span><span class=\"token plain\">pubSub</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">publish</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token string\" style=\"color: rgb(173, 219, 103);\">'myEvent'</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 210px; height: 21px; width: 100%;\"><span class=\"LineTo\">11</span><span class=\"token plain\" style=\"display: inline-block;\"></span></div></div></div></div><div class=\"resize-triggers\"><div class=\"expand-trigger\"><div style=\"width: 687px; height: 228px;\"></div></div><div class=\"contract-trigger\"></div></div></pre></div></div><div class=\"ExplanationRoot react-draggable\" data-root-id=\"explanation-0\" data-snapshot-play-item=\"explanation\" data-snapshot-play-group=\"0\" data-position-x=\"22\" data-position-y=\"20\" style=\"transform: translate(22px, 20px);\"><div class=\"ExplanationContainer hasExtraStep\"><div class=\"Header\"><strong class=\"Drag\"></strong><a class=\"MenuButton\"><span role=\"img\" aria-label=\"menu\" class=\"anticon anticon-menu\"><svg viewBox=\"64 64 896 896\" focusable=\"false\" data-icon=\"menu\" width=\"1em\" height=\"1em\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M904 160H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0 624H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0-312H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8z\"></path></svg></span></a></div><div class=\"ExplanationContent\"><pre>All registered subscribers will be notified once particular event is published</pre><textarea spellcheck=\"false\" class=\"InputArea ScrollbarWin\" placeholder=\"Enter explanation here...\">1) All registered subscribers will be notified once particular event is published</textarea></div><div data-order-number=\"1\" class=\"ExtraOrderNumber\"><pre>1</pre></div></div></div><div class=\"ExplanationRoot react-draggable\" data-root-id=\"explanation-3\" data-snapshot-play-item=\"explanation\" data-snapshot-play-group=\"0\" data-position-x=\"22\" data-position-y=\"167\" style=\"transform: translate(22px, 167px);\"><div class=\"ExplanationContainer hasExtraStep\"><div class=\"Header\"><strong class=\"Drag\"></strong><a class=\"MenuButton\"><span role=\"img\" aria-label=\"menu\" class=\"anticon anticon-menu\"><svg viewBox=\"64 64 896 896\" focusable=\"false\" data-icon=\"menu\" width=\"1em\" height=\"1em\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M904 160H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0 624H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0-312H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8z\"></path></svg></span></a></div><div class=\"ExplanationContent\"><pre>Publisher dispatches events</pre><textarea spellcheck=\"false\" class=\"InputArea ScrollbarWin\" placeholder=\"Enter explanation here...\">0) Publisher dispatches events</textarea></div><div data-order-number=\"0\" class=\"ExtraOrderNumber\"><pre>0</pre></div></div></div>",
+      "author": {
+        "displayName": "Bohdan Liashenko"
+      },
+      "userChoiceState": {
+        "dataBus": {
+          "explanationTooltipsMap": {
+            "lib/webpack.js#3": {
+              "path": "lib/webpack.js#3",
+              "type": "explanation",
+              "isOnConnection": false,
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/webpack.js"
+              ],
+              "playGroup": 0,
+              "id": 0,
+              "lineNumber": 3,
+              "originalPoint": {
+                "originalOffset": 21,
+                "x": 0,
+                "y": 80
+              },
+              "positionPoint": {
+                "x": -22,
+                "y": 59
+              },
+              "positionPointWithOffset": {
+                "x": -22,
+                "y": 59
+              },
+              "group": "lib/webpack.js#3",
+              "content": "1) All registered subscribers will be notified once particular event is published"
+            },
+            "lib/webpack.js#5": {
+              "path": "lib/webpack.js#5",
+              "type": "explanation",
+              "isOnConnection": false,
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/webpack.js"
+              ],
+              "playGroup": 1,
+              "id": 1,
+              "lineNumber": 5,
+              "originalPoint": {
+                "originalOffset": 63,
+                "x": 0,
+                "y": 122
+              },
+              "positionPoint": {
+                "x": -22,
+                "y": 101
+              },
+              "positionPointWithOffset": {
+                "x": -22,
+                "y": 101
+              },
+              "group": "lib/webpack.js#3"
+            },
+            "lib/webpack.js#7": {
+              "path": "lib/webpack.js#7",
+              "type": "explanation",
+              "isOnConnection": false,
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/webpack.js"
+              ],
+              "playGroup": 2,
+              "id": 2,
+              "lineNumber": 7,
+              "originalPoint": {
+                "originalOffset": 105,
+                "x": 0,
+                "y": 164
+              },
+              "positionPoint": {
+                "x": -22,
+                "y": 143
+              },
+              "positionPointWithOffset": {
+                "x": -22,
+                "y": 143
+              },
+              "group": "lib/webpack.js#3"
+            },
+            "lib/webpack.js#10": {
+              "path": "lib/webpack.js#10",
+              "type": "explanation",
+              "isOnConnection": false,
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/webpack.js"
+              ],
+              "playGroup": 0,
+              "id": 3,
+              "lineNumber": 10,
+              "originalPoint": {
+                "originalOffset": 168,
+                "x": 0,
+                "y": 227
+              },
+              "positionPoint": {
+                "x": -22,
+                "y": 206
+              },
+              "positionPointWithOffset": {
+                "x": -22,
+                "y": 206
+              },
+              "content": "0) Publisher dispatches events"
+            }
+          }
+        }
+      },
+      "size": {
+        "width": 952,
+        "height": 315
+      }
+    },
+    {
+      "id": "19",
+      "aliasId": "19",
+      "size": {
+        "width": 1150,
+        "height": 535
+      },
+      "hidePlayerControls": true,
+      "title": "SizeLimitsPlugin initialisation",
+      "html": "<svg width=\"1150\" height=\"535\" xmlns=\"http://www.w3.org/2000/svg\" shape-rendering=\"optimizeSpeed\" class=\"SvgTree\"><rect x=\"0\" y=\"0\" width=\"1150\" height=\"535\" class=\"UnderLayer\"></rect><path class=\"SourceEdge\" d=\"M 92.5 360.5 L 92.5 360.5 L 92.5 480.5 Q 92.5 485.5 97.5 485.5 L 105.5 485.5\"></path><path class=\"SourceEdge SourceEdge-selected\" d=\"M 63.79 360.5 L 92.5 360.5 L 92.5 35.5 Q 92.5 30.5 97.5 30.5 L 105.5 30.5\"></path><polyline points=\"226.23,30.5, 268.5,30.5, 268.5,30.5\" class=\"SourceEdge SourceEdge-selected\"></polyline><g class=\"FolderNode\"><svg version=\"1.1\" x=\"17\" y=\"352\" viewBox=\"0 0 276.157 276.157\" width=\"15\" height=\"15\" shape-rendering=\"geometricPrecision\" class=\"FolderNodeIcon\"><path d=\"M273.081,101.378c-3.3-4.651-8.86-7.319-15.255-7.319h-24.34v-26.47c0-10.201-8.299-18.5-18.5-18.5  h-85.322c-3.63,0-9.295-2.876-11.436-5.806l-6.386-8.735c-4.982-6.814-15.104-11.954-23.546-11.954H58.731  c-9.293,0-18.639,6.608-21.738,15.372l-2.033,5.752c-0.958,2.71-4.721,5.371-7.596,5.371H18.5c-10.201,0-18.5,8.299-18.5,18.5  v167.07c0,0.885,0.161,1.73,0.443,2.519c0.152,3.306,1.18,6.424,3.053,9.064c3.3,4.652,8.86,7.319,15.255,7.319h188.486  c11.395,0,23.27-8.424,27.035-19.179l40.677-116.188C277.061,112.159,276.381,106.03,273.081,101.378z M18.5,64.089h8.864  c9.295,0,18.64-6.608,21.738-15.372l2.032-5.75c0.959-2.711,4.722-5.372,7.597-5.372h29.564c3.63,0,9.295,2.876,11.437,5.806  l6.386,8.734c4.982,6.815,15.104,11.954,23.546,11.954h85.322c1.898,0,3.5,1.603,3.5,3.5v26.47H69.34  c-11.395,0-23.27,8.424-27.035,19.179L15,191.231V67.589C15,65.692,16.603,64.089,18.5,64.089z M260.791,113.238l-40.677,116.188  c-1.674,4.781-7.812,9.135-12.877,9.135H18.751c-1.448,0-2.577-0.373-3.02-0.998c-0.443-0.625-0.423-1.814,0.056-3.181  l40.677-116.188c1.674-4.781,7.812-9.135,12.877-9.135h188.486c1.448,0,2.577,0.373,3.021,0.998  C261.29,110.682,261.27,111.871,260.791,113.238z\"></path></svg><g><rect x=\"21\" y=\"363\" width=\"11\" height=\"4\" class=\"Folder-collapsed-children-rect\"></rect><text x=\"22\" y=\"366\" class=\"Folder-collapsed-children-text\">..</text></g><rect x=\"10\" y=\"345\" width=\"50.29\" height=\"30\" class=\"NodeText-cover\"></rect><text x=\"35\" y=\"365\" data-path=\"lib\" class=\"NodeNameText\">lib</text></g><g class=\"FolderNode\"><svg version=\"1.1\" x=\"112\" y=\"22\" viewBox=\"0 0 276.157 276.157\" width=\"15\" height=\"15\" shape-rendering=\"geometricPrecision\" class=\"FolderNodeIcon\"><path d=\"M273.081,101.378c-3.3-4.651-8.86-7.319-15.255-7.319h-24.34v-26.47c0-10.201-8.299-18.5-18.5-18.5  h-85.322c-3.63,0-9.295-2.876-11.436-5.806l-6.386-8.735c-4.982-6.814-15.104-11.954-23.546-11.954H58.731  c-9.293,0-18.639,6.608-21.738,15.372l-2.033,5.752c-0.958,2.71-4.721,5.371-7.596,5.371H18.5c-10.201,0-18.5,8.299-18.5,18.5  v167.07c0,0.885,0.161,1.73,0.443,2.519c0.152,3.306,1.18,6.424,3.053,9.064c3.3,4.652,8.86,7.319,15.255,7.319h188.486  c11.395,0,23.27-8.424,27.035-19.179l40.677-116.188C277.061,112.159,276.381,106.03,273.081,101.378z M18.5,64.089h8.864  c9.295,0,18.64-6.608,21.738-15.372l2.032-5.75c0.959-2.711,4.722-5.372,7.597-5.372h29.564c3.63,0,9.295,2.876,11.437,5.806  l6.386,8.734c4.982,6.815,15.104,11.954,23.546,11.954h85.322c1.898,0,3.5,1.603,3.5,3.5v26.47H69.34  c-11.395,0-23.27,8.424-27.035,19.179L15,191.231V67.589C15,65.692,16.603,64.089,18.5,64.089z M260.791,113.238l-40.677,116.188  c-1.674,4.781-7.812,9.135-12.877,9.135H18.751c-1.448,0-2.577-0.373-3.02-0.998c-0.443-0.625-0.423-1.814,0.056-3.181  l40.677-116.188c1.674-4.781,7.812-9.135,12.877-9.135h188.486c1.448,0,2.577,0.373,3.021,0.998  C261.29,110.682,261.27,111.871,260.791,113.238z\"></path></svg><g><rect x=\"116\" y=\"33\" width=\"11\" height=\"4\" class=\"Folder-collapsed-children-rect\"></rect><text x=\"117\" y=\"36\" class=\"Folder-collapsed-children-text\">..</text></g><rect x=\"105\" y=\"15\" width=\"117.72999999999999\" height=\"30\" class=\"NodeText-cover\"></rect><text x=\"130\" y=\"35\" data-path=\"lib/performance\" class=\"NodeNameText\">performance</text></g><g class=\"FileNode\"><svg version=\"1.1\" x=\"112\" y=\"476\" width=\"15\" height=\"15\" viewBox=\"0 0 512 512\" shape-rendering=\"geometricPrecision\" class=\"FileNodeIcon\"><path d=\"m436.03125 107.03125-104.601562-102.734375c-2.804688-2.753906-6.578126-4.296875-10.511719-4.296875h-264.449219c-30.859375 0-55.96875 25.105469-55.96875 55.96875v400.0625c0 30.859375 25.105469 55.96875 55.96875 55.96875h328.082031c30.859375 0 55.96875-25.105469 55.96875-55.96875v-338.296875c0-4.027344-1.617187-7.882813-4.488281-10.703125zm-100.113281-56.273438 52.921875 51.976563h-48.152344c-2.628906 0-4.769531-2.140625-4.769531-4.769531zm48.632812 431.242188h-328.082031c-14.316406 0-25.96875-11.648438-25.96875-25.96875v-400.0625c0-14.320312 11.648438-25.96875 25.96875-25.96875h249.453125v67.964844c0 19.171875 15.597656 34.769531 34.769531 34.769531h69.828125v323.296875c0 14.320312-11.648437 25.96875-25.96875 25.96875zm0 0\"></path><path d=\"m324.644531 238h-211.453125c-8.285156 0-15 6.714844-15 15s6.714844 15 15 15h211.453125c8.285157 0 15-6.714844 15-15s-6.714843-15-15-15zm0 0\"></path><path d=\"m113.191406 328h172.414063c8.285156 0 15-6.714844 15-15s-6.714844-15-15-15h-172.414063c-8.285156 0-15 6.714844-15 15s6.714844 15 15 15zm0 0\"></path><path d=\"m306.40625 358h-193.214844c-8.285156 0-15 6.714844-15 15s6.714844 15 15 15h193.214844c8.28125 0 15-6.714844 15-15s-6.71875-15-15-15zm0 0\"></path></svg><g><rect x=\"105\" y=\"470\" width=\"210.45999999999998\" height=\"25\" class=\"NodeText-cover\"></rect><title>lib/WebpackOptionsApply.js</title><text x=\"128\" y=\"490\" data-path=\"lib/WebpackOptionsApply.js\" class=\"NodeNameText\">WebpackOptionsApply.js</text></g></g><g class=\"FileNode\"><svg version=\"1.1\" x=\"275\" y=\"21\" width=\"15\" height=\"15\" viewBox=\"0 0 512 512\" shape-rendering=\"geometricPrecision\" class=\"FileNodeIcon\"><path d=\"m436.03125 107.03125-104.601562-102.734375c-2.804688-2.753906-6.578126-4.296875-10.511719-4.296875h-264.449219c-30.859375 0-55.96875 25.105469-55.96875 55.96875v400.0625c0 30.859375 25.105469 55.96875 55.96875 55.96875h328.082031c30.859375 0 55.96875-25.105469 55.96875-55.96875v-338.296875c0-4.027344-1.617187-7.882813-4.488281-10.703125zm-100.113281-56.273438 52.921875 51.976563h-48.152344c-2.628906 0-4.769531-2.140625-4.769531-4.769531zm48.632812 431.242188h-328.082031c-14.316406 0-25.96875-11.648438-25.96875-25.96875v-400.0625c0-14.320312 11.648438-25.96875 25.96875-25.96875h249.453125v67.964844c0 19.171875 15.597656 34.769531 34.769531 34.769531h69.828125v323.296875c0 14.320312-11.648437 25.96875-25.96875 25.96875zm0 0\"></path><path d=\"m324.644531 238h-211.453125c-8.285156 0-15 6.714844-15 15s6.714844 15 15 15h211.453125c8.285157 0 15-6.714844 15-15s-6.714843-15-15-15zm0 0\"></path><path d=\"m113.191406 328h172.414063c8.285156 0 15-6.714844 15-15s-6.714844-15-15-15h-172.414063c-8.285156 0-15 6.714844-15 15s6.714844 15 15 15zm0 0\"></path><path d=\"m306.40625 358h-193.214844c-8.285156 0-15 6.714844-15 15s6.714844 15 15 15h193.214844c8.28125 0 15-6.714844 15-15s-6.71875-15-15-15zm0 0\"></path></svg><g><rect x=\"268\" y=\"15\" width=\"185.17\" height=\"25\" class=\"NodeText-cover\"></rect><title>lib/performance/SizeLimitsPlugin.js</title><text x=\"291\" y=\"35\" data-path=\"lib/performance/SizeLimitsPlugin.js\" class=\"NodeNameText\">SizeLimitsPlugin.js</text></g></g><svg version=\"1.1\" width=\"6px\" height=\"6px\" x=\"102.5\" y=\"27.5\" shape-rendering=\"geometricPrecision\"><circle r=\"2.5\" cx=\"3\" cy=\"3\" class=\"DotIconSelected\"></circle></svg><svg version=\"1.1\" width=\"6px\" height=\"6px\" x=\"102.5\" y=\"482.5\" shape-rendering=\"geometricPrecision\"><circle r=\"2.5\" cx=\"3\" cy=\"3\" class=\"DotIcon\"></circle></svg><svg version=\"1.1\" width=\"6px\" height=\"6px\" x=\"265.5\" y=\"27.5\" shape-rendering=\"geometricPrecision\"><circle r=\"2.5\" cx=\"3\" cy=\"3\" class=\"DotIconSelected\"></circle></svg><g data-connection-to-file-root-id=\"1\"><polyline points=\"318,485,360,485,360,384,370,384\" shape-rendering=\"crispEdges\" class=\"StoryTellingCodeConnectionToFile\" stroke-dasharray=\"2\"></polyline><line x1=\"318\" y1=\"483\" x2=\"318\" y2=\"488\" shape-rendering=\"crispEdges\" class=\"StoryTellingCodeConnectionToFile\" stroke-dasharray=\"2\"></line></g><g data-connection-to-file-root-id=\"2\"><polyline points=\"455, 30, 465, 30, 465, 45, 360, 45, 360, 74, 370, 74\" shape-rendering=\"crispEdges\" class=\"StoryTellingCodeConnectionToFile StoryTellingCodeConnectionToFile-selected\" stroke-dasharray=\"2\"></polyline><line x1=\"455\" y1=\"28\" x2=\"455\" y2=\"33\" shape-rendering=\"crispEdges\" class=\"StoryTellingCodeConnectionToFile StoryTellingCodeConnectionToFile-selected\" stroke-dasharray=\"2\"></line></g><g class=\"Color1\" data-root-id=\"connection-0\" data-snapshot-play-item=\"connection\" data-snapshot-play-group=\"1\" data-position-x=\"331\" data-position-y=\"307.5\"><path class=\"StoryTellingNodesConnectionShadow\" shape-rendering=\"geometricPrecision\" d=\"M368 465 C321 454 318 161 365 152\"></path><path class=\"EdgeMouseHandler\" shape-rendering=\"geometricPrecision\" d=\"M367 464 C321 454 318 161 364 151\" data-connection-path=\"lib/WebpackOptionsApply.js|lib/performance/SizeLimitsPlugin.js\"></path><path class=\"StoryTellingNodesConnection\" shape-rendering=\"geometricPrecision\" d=\"M367 464 C321 454 318 161 364 151\"></path><circle cx=\"368\" cy=\"465\" r=\"3.5\" shape-rendering=\"geometricPrecision\" class=\"StoryTellingNodeSourceShadow\"></circle><circle cx=\"367\" cy=\"464\" r=\"3\" shape-rendering=\"geometricPrecision\" class=\"StoryTellingNodeSource\"></circle><svg version=\"1.1\" x=\"358.5\" y=\"145.5\" viewBox=\"0 0 448.011 448.011\" width=\"13\" height=\"13\" shape-rendering=\"geometricPrecision\" class=\"ArrowShadow\"><g><path d=\"M438.731,209.463l-416-192c-6.624-3.008-14.528-1.216-19.136,4.48c-4.64,5.696-4.8,13.792-0.384,19.648l136.8,182.4    l-136.8,182.4c-4.416,5.856-4.256,13.984,0.352,19.648c3.104,3.872,7.744,5.952,12.448,5.952c2.272,0,4.544-0.48,6.688-1.472    l416-192c5.696-2.624,9.312-8.288,9.312-14.528S444.395,212.087,438.731,209.463z\" style=\"transform: rotate(-12.2648deg); transform-origin: 50% 50%;\"></path></g></svg><svg version=\"1.1\" x=\"357.5\" y=\"144.5\" viewBox=\"0 0 448.011 448.011\" width=\"13\" height=\"13\" shape-rendering=\"geometricPrecision\" class=\"ArrowIcon\"><g><path d=\"M438.731,209.463l-416-192c-6.624-3.008-14.528-1.216-19.136,4.48c-4.64,5.696-4.8,13.792-0.384,19.648l136.8,182.4    l-136.8,182.4c-4.416,5.856-4.256,13.984,0.352,19.648c3.104,3.872,7.744,5.952,12.448,5.952c2.272,0,4.544-0.48,6.688-1.472    l416-192c5.696-2.624,9.312-8.288,9.312-14.528S444.395,212.087,438.731,209.463z\" style=\"transform: rotate(-12.2648deg); transform-origin: 50% 50%;\"></path></g></svg>)<svg version=\"1.1\" x=\"325.5\" y=\"302\" viewBox=\"0 0 448.011 448.011\" width=\"13\" height=\"13\" shape-rendering=\"geometricPrecision\" class=\"ArrowShadow\"><g><path d=\"M438.731,209.463l-416-192c-6.624-3.008-14.528-1.216-19.136,4.48c-4.64,5.696-4.8,13.792-0.384,19.648l136.8,182.4    l-136.8,182.4c-4.416,5.856-4.256,13.984,0.352,19.648c3.104,3.872,7.744,5.952,12.448,5.952c2.272,0,4.544-0.48,6.688-1.472    l416-192c5.696-2.624,9.312-8.288,9.312-14.528S444.395,212.087,438.731,209.463z\" style=\"transform: rotate(269.433deg); transform-origin: 50% 50%;\"></path></g></svg><svg version=\"1.1\" x=\"324.5\" y=\"301\" viewBox=\"0 0 448.011 448.011\" width=\"13\" height=\"13\" shape-rendering=\"geometricPrecision\" class=\"ArrowIcon\"><g><path d=\"M438.731,209.463l-416-192c-6.624-3.008-14.528-1.216-19.136,4.48c-4.64,5.696-4.8,13.792-0.384,19.648l136.8,182.4    l-136.8,182.4c-4.416,5.856-4.256,13.984,0.352,19.648c3.104,3.872,7.744,5.952,12.448,5.952c2.272,0,4.544-0.48,6.688-1.472    l416-192c5.696-2.624,9.312-8.288,9.312-14.528S444.395,212.087,438.731,209.463z\" style=\"transform: rotate(269.433deg); transform-origin: 50% 50%;\"></path></g></svg></g><polyline data-explanation-line-id=\"0\" shape-rendering=\"geometricPrecision\" points=\"331,308, 566,258\" class=\"ExplanationConnection\" stroke-dasharray=\"2\" stroke-linecap=\"round\"></polyline><polyline data-explanation-line-id=\"1\" shape-rendering=\"geometricPrecision\" points=\"370,190, 319,95\" class=\"ExplanationConnection\" stroke-dasharray=\"2\" stroke-linecap=\"round\"></polyline></svg><div data-root-id=\"openedCodeFile-1\" data-snapshot-play-item=\"openedCodeFile\" data-snapshot-play-group=\"0\" data-position-x=\"370\" data-position-y=\"370\" data-file-path=\"lib/WebpackOptionsApply.js\" class=\"CodePreviewContainer react-draggable\" style=\"height: 140px; width: 680px; transform: translate(370px, 370px);\"><div class=\"Header\"><div class=\"FilePath\"><div class=\"FilePathItself\"><a href=\"https://github.com/webpack/webpack/blob/v4.43.0/lib/WebpackOptionsApply.js\" target=\"_blank\">lib / WebpackOptionsApply.js</a></div></div></div><div class=\"Code\" data-scroll-top=\"10174\"><pre class=\"CodePre prism-code language-jsx\" style=\"color: rgb(214, 222, 235); background-color: rgb(1, 22, 39); position: relative;\"><div style=\"overflow: visible; height: 0px; width: 0px;\"><div class=\"CodeLinesList ScrollbarWin ScrollbarWinLight\" style=\"position: relative; height: 97px; width: 676px; overflow: auto; will-change: transform; direction: ltr;\"><div style=\"height: 11487px; width: 100%; position: absolute; top: -10174px;\"><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 10122px; height: 21px; width: 100%;\"><span class=\"LineTo\">483</span><span class=\"token plain\">\t\t\t</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">}</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 10143px; height: 21px; width: 100%;\"><span class=\"LineTo\">484</span><span class=\"token plain\">\t\t</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">}</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 10164px; height: 21px; width: 100%;\"><span class=\"LineTo\">485</span><span class=\"token plain\" style=\"display: inline-block;\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 10185px; height: 21px; width: 100%;\"><span class=\"LineTo\">486</span><span class=\"token plain\">\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">if</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token plain\">options</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">performance</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 10206px; height: 21px; width: 100%;\"><span class=\"LineTo\">487</span><span class=\"token plain\">\t\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">const</span><span class=\"token plain\"> SizeLimitsPlugin </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=</span><span class=\"token plain\"> </span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">require</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token string\" style=\"color: rgb(173, 219, 103);\">\"./performance/SizeLimitsPlugin\"</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">;</span><span class=\"token plain\"></span></div><div class=\"token-line Storytelling\" data-connection-code-line-id=\"0\" style=\"position: absolute; left: 0px; top: 10227px; height: 21px; width: 100%;\"><span class=\"LineTo\">488</span><span class=\"token plain\">\t\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">new</span><span class=\"token plain\"> </span><span class=\"token class-name\" style=\"color: rgb(255, 203, 139);\">SizeLimitsPlugin</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token plain\">options</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">performance</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">apply</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token plain\">compiler</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">;</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 10248px; height: 21px; width: 100%;\"><span class=\"LineTo\">489</span><span class=\"token plain\">\t\t</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">}</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 10269px; height: 21px; width: 100%;\"><span class=\"LineTo\">490</span><span class=\"token plain\" style=\"display: inline-block;\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 10290px; height: 21px; width: 100%;\"><span class=\"LineTo\">491</span><span class=\"token plain\">\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">new</span><span class=\"token plain\"> </span><span class=\"token class-name\" style=\"color: rgb(255, 203, 139);\">TemplatedPathPlugin</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">apply</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token plain\">compiler</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">;</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 10311px; height: 21px; width: 100%;\"><span class=\"LineTo\">492</span><span class=\"token plain\" style=\"display: inline-block;\"></span></div></div></div></div><div class=\"resize-triggers\"><div class=\"expand-trigger\"><div style=\"width: 677px; height: 98px;\"></div></div><div class=\"contract-trigger\"></div></div></pre></div></div><div data-root-id=\"openedCodeFile-2\" data-snapshot-play-item=\"openedCodeFile\" data-snapshot-play-group=\"0\" data-position-x=\"370\" data-position-y=\"60\" data-file-path=\"lib/performance/SizeLimitsPlugin.js\" class=\"CodePreviewContainer react-draggable\" style=\"height: 160px; width: 660px; transform: translate(370px, 60px);\"><div class=\"Header\"><div class=\"FilePath\"><div class=\"FilePathItself\"><a href=\"https://github.com/webpack/webpack/blob/v4.43.0/lib/performance/SizeLimitsPlugin.js\" target=\"_blank\">lib / performance / SizeLimitsPlugin.js</a></div></div></div><div class=\"Code\" data-scroll-top=\"244\"><pre class=\"CodePre prism-code language-jsx\" style=\"color: rgb(214, 222, 235); background-color: rgb(1, 22, 39); position: relative;\"><div style=\"overflow: visible; height: 0px; width: 0px;\"><div class=\"CodeLinesList ScrollbarWin ScrollbarWinLight\" style=\"position: relative; height: 117px; width: 656px; overflow: auto; will-change: transform; direction: ltr;\"><div style=\"height: 2331px; width: 100%; position: absolute; top: -244px;\"><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 189px; height: 21px; width: 100%;\"><span class=\"LineTo\">10</span><span class=\"token plain\"></span><span class=\"token comment\" style=\"color: rgb(99, 119, 119); font-style: italic;\">/** @typedef {import(\"../Compiler\")} Compiler */</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 210px; height: 21px; width: 100%;\"><span class=\"LineTo\">11</span><span class=\"token plain\"></span><span class=\"token comment\" style=\"color: rgb(99, 119, 119); font-style: italic;\">/** @typedef {import(\"../Entrypoint\")} Entrypoint */</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 231px; height: 21px; width: 100%;\"><span class=\"LineTo\">12</span><span class=\"token plain\" style=\"display: inline-block;\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 252px; height: 21px; width: 100%;\"><span class=\"LineTo\">13</span><span class=\"token plain\">module</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">exports </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=</span><span class=\"token plain\"> </span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">class</span><span class=\"token plain\"> </span><span class=\"token class-name\" style=\"color: rgb(255, 203, 139);\">SizeLimitsPlugin</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line CollapsedLine\" style=\"position: absolute; left: 0px; top: 273px; height: 21px; width: 100%;\"><span class=\"PlusIcon\">+ </span><div class=\"InnerLine\"></div></div><div class=\"token-line Storytelling\" data-connection-code-line-id=\"0\" style=\"position: absolute; left: 0px; top: 294px; height: 21px; width: 100%;\"><span class=\"LineTo\">25</span><span class=\"token plain\">\t</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">apply</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token parameter\">compiler</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line CollapsedLine\" style=\"position: absolute; left: 0px; top: 315px; height: 21px; width: 100%;\"><span class=\"PlusIcon\">+ </span><div class=\"InnerLine\"></div></div><div class=\"token-line Storytelling\" data-explanation-code-line-id=\"1\" style=\"position: absolute; left: 0px; top: 336px; height: 21px; width: 100%;\"><span class=\"LineTo\">32</span><span class=\"token plain\">\t\tcompiler</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">hooks</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">afterEmit</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">tap</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token string\" style=\"color: rgb(173, 219, 103);\">\"SizeLimitsPlugin\"</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token plain\"> </span><span class=\"token parameter\">compilation</span><span class=\"token plain\"> </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=&gt;</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 357px; height: 21px; width: 100%;\"><span class=\"LineTo\">33</span><span class=\"token plain\">\t\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">const</span><span class=\"token plain\"> warnings </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">[</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">]</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">;</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 378px; height: 21px; width: 100%;\"><span class=\"LineTo\">34</span><span class=\"token plain\" style=\"display: inline-block;\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 399px; height: 21px; width: 100%;\"><span class=\"LineTo\">35</span><span class=\"token plain\">\t\t\t</span><span class=\"token comment\" style=\"color: rgb(99, 119, 119); font-style: italic;\">/**</span></div></div></div></div><div class=\"resize-triggers\"><div class=\"expand-trigger\"><div style=\"width: 657px; height: 118px;\"></div></div><div class=\"contract-trigger\"></div></div></pre></div></div><div class=\"ExplanationRoot react-draggable\" data-root-id=\"explanation-0\" data-snapshot-play-item=\"explanation\" data-snapshot-play-group=\"1\" data-position-x=\"368\" data-position-y=\"249\" style=\"transform: translate(368px, 249px);\"><div class=\"ExplanationContainer hasExtraStep\"><div class=\"Header\"><strong class=\"Drag\"></strong><a class=\"MenuButton\"><span role=\"img\" aria-label=\"menu\" class=\"anticon anticon-menu\"><svg viewBox=\"64 64 896 896\" focusable=\"false\" data-icon=\"menu\" width=\"1em\" height=\"1em\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M904 160H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0 624H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0-312H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8z\"></path></svg></span></a></div><div class=\"ExplanationContent\"><pre>`SizeLimitsPlugin` is instantiated and assigned to compiler in `WebpackOptionsApply`</pre><textarea spellcheck=\"false\" class=\"InputArea ScrollbarWin\" placeholder=\"Enter explanation here...\">0) `SizeLimitsPlugin` is instantiated and assigned to compiler in `WebpackOptionsApply`</textarea></div><div data-order-number=\"0\" class=\"ExtraOrderNumber\"><pre>0</pre></div></div></div><div class=\"ExplanationRoot react-draggable\" data-root-id=\"explanation-1\" data-snapshot-play-item=\"explanation\" data-snapshot-play-group=\"2\" data-position-x=\"121\" data-position-y=\"86\" style=\"transform: translate(121px, 86px);\"><div class=\"ExplanationContainer hasExtraStep\"><div class=\"Header\"><strong class=\"Drag\"></strong><a class=\"MenuButton\"><span role=\"img\" aria-label=\"menu\" class=\"anticon anticon-menu\"><svg viewBox=\"64 64 896 896\" focusable=\"false\" data-icon=\"menu\" width=\"1em\" height=\"1em\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M904 160H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0 624H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0-312H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8z\"></path></svg></span></a></div><div class=\"ExplanationContent\"><pre>`SizeLimitsPlugin` taps on afterEmit event</pre><textarea spellcheck=\"false\" class=\"InputArea ScrollbarWin\" placeholder=\"Enter explanation here...\">1) `SizeLimitsPlugin` taps on afterEmit event</textarea></div><div data-order-number=\"1\" class=\"ExtraOrderNumber\"><pre>1</pre></div></div></div>",
+      "author": {
+        "displayName": "Bohdan Liashenko"
+      },
+      "projects": [
+        {
+          "path": "https://github.com/webpack/webpack",
+          "name": "webpack@4.43.0"
+        }
+      ],
+      "userChoiceState": {
+        "dataBus": {
+          "storyTellingConnections": [
+            {
+              "from": {
+                "direction": "from",
+                "path": "lib/WebpackOptionsApply.js",
+                "lineNumber": 488,
+                "type": "connection",
+                "namespace": [
+                  "lib"
+                ],
+                "involvedNodesPathList": [
+                  "lib/WebpackOptionsApply.js",
+                  "lib/performance/SizeLimitsPlugin.js"
+                ],
+                "id": 0,
+                "playGroup": 1
+              },
+              "to": {
+                "direction": "to",
+                "path": "lib/performance/SizeLimitsPlugin.js",
+                "lineNumber": 25,
+                "type": "connection",
+                "namespace": [
+                  "lib"
+                ],
+                "involvedNodesPathList": [
+                  "lib/WebpackOptionsApply.js",
+                  "lib/performance/SizeLimitsPlugin.js"
+                ],
+                "id": 0,
+                "playGroup": 1
+              },
+              "path": "lib/WebpackOptionsApply.js#488|lib/performance/SizeLimitsPlugin.js#25",
+              "type": "connection",
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/WebpackOptionsApply.js",
+                "lib/performance/SizeLimitsPlugin.js"
+              ],
+              "id": 0,
+              "playGroup": 1
+            }
+          ],
+          "explanationTooltipsMap": {
+            "lib/WebpackOptionsApply.js#488|lib/performance/SizeLimitsPlugin.js#25": {
+              "path": "lib/WebpackOptionsApply.js#488|lib/performance/SizeLimitsPlugin.js#25",
+              "codeAround": null,
+              "type": "explanation",
+              "isOnConnection": true,
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/WebpackOptionsApply.js",
+                "lib/performance/SizeLimitsPlugin.js"
+              ],
+              "playGroup": 1,
+              "id": 0,
+              "originalPoint": {
+                "x": 320.96999999999997,
+                "y": -52.5
+              },
+              "positionPoint": {
+                "x": 298.96999999999997,
+                "y": -73.5
+              },
+              "positionPointWithOffset": {
+                "x": 555.97,
+                "y": -52.5
+              },
+              "dragging": false,
+              "positionOffset": {
+                "x": 257,
+                "y": 21
+              },
+              "content": "0) `SizeLimitsPlugin` is instantiated and assigned to compiler in `WebpackOptionsApply`"
+            },
+            "lib/performance/SizeLimitsPlugin.js#32": {
+              "path": "lib/performance/SizeLimitsPlugin.js#32",
+              "type": "explanation",
+              "isOnConnection": false,
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/performance/SizeLimitsPlugin.js"
+              ],
+              "playGroup": 2,
+              "id": 1,
+              "lineNumber": 32,
+              "originalPoint": {
+                "originalOffset": 315,
+                "x": 360.18999999999994,
+                "y": -170
+              },
+              "positionPoint": {
+                "x": 338.18999999999994,
+                "y": -191
+              },
+              "positionPointWithOffset": {
+                "x": 309.18999999999994,
+                "y": -215
+              },
+              "dragging": false,
+              "positionOffset": {
+                "x": -29,
+                "y": -24
+              },
+              "content": "1) `SizeLimitsPlugin` taps on afterEmit event"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "22",
+      "aliasId": "22",
+      "namespace": "source-project-webpack-javascript",
+      "hidePlayerControls": true,
+      "title": "Hooks example",
+      "html": "<svg width=\"652\" height=\"345\" xmlns=\"http://www.w3.org/2000/svg\" shape-rendering=\"optimizeSpeed\" class=\"SvgTree\"><rect x=\"0\" y=\"0\" width=\"652\" height=\"345\" class=\"UnderLayer\"></rect><polyline data-explanation-line-id=\"0\" shape-rendering=\"geometricPrecision\" points=\"62,191, 40,160\" class=\"ExplanationConnection\" stroke-dasharray=\"2\" stroke-linecap=\"round\"></polyline><polyline data-explanation-line-id=\"1\" shape-rendering=\"geometricPrecision\" points=\"62,233, 40,202\" class=\"ExplanationConnection\" stroke-dasharray=\"2\" stroke-linecap=\"round\"></polyline><polyline data-explanation-line-id=\"2\" shape-rendering=\"geometricPrecision\" points=\"62,275, 40,244\" class=\"ExplanationConnection\" stroke-dasharray=\"2\" stroke-linecap=\"round\"></polyline></svg><div data-root-id=\"openedCodeFile-0\" data-snapshot-play-item=\"openedCodeFile\" data-snapshot-play-group=\"0\" data-position-x=\"62\" data-position-y=\"20\" data-file-path=\"lib/Compiler.js\" class=\"CodePreviewContainer react-draggable\" style=\"height: 300px; width: 570px; transform: translate(62px, 20px);\"><div class=\"Header\"><div class=\"FilePath\"><div class=\"FilePathItself\"><a href=\"https://github.com/webpack/webpack/blob/v4.43.0/lib/Compiler.js\" target=\"_blank\">lib / Compiler.js</a></div></div></div><div class=\"Code\" data-scroll-top=\"854\"><pre class=\"CodePre prism-code language-jsx\" style=\"color: rgb(214, 222, 235); background-color: rgb(1, 22, 39); position: relative;\"><div style=\"overflow: visible; height: 0px; width: 0px;\"><div class=\"CodeLinesList ScrollbarWin ScrollbarWinLight\" style=\"position: relative; height: 257px; width: 566px; overflow: auto; will-change: transform; direction: ltr;\"><div style=\"height: 14931px; width: 100%; position: absolute; top: -854px;\"><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 798px; height: 21px; width: 100%;\"><span class=\"LineTo\">39</span><span class=\"token comment\" style=\"color: rgb(99, 119, 119); font-style: italic;\"> * @property {Set&lt;string&gt;} compilationDependencies</span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 819px; height: 21px; width: 100%;\"><span class=\"LineTo\">40</span><span class=\"token comment\" style=\"color: rgb(99, 119, 119); font-style: italic;\"> */</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 840px; height: 21px; width: 100%;\"><span class=\"LineTo\">41</span><span class=\"token plain\" style=\"display: inline-block;\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 861px; height: 21px; width: 100%;\"><span class=\"LineTo\">42</span><span class=\"token plain\"></span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">class</span><span class=\"token plain\"> </span><span class=\"token class-name\" style=\"color: rgb(255, 203, 139);\">Compiler</span><span class=\"token plain\"> </span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">extends</span><span class=\"token plain\"> </span><span class=\"token class-name\" style=\"color: rgb(255, 203, 139);\">Tapable</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 882px; height: 21px; width: 100%;\"><span class=\"LineTo\">43</span><span class=\"token plain\">\t</span><span class=\"token function\" style=\"color: rgb(130, 170, 255);\">constructor</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token parameter\">context</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 903px; height: 21px; width: 100%;\"><span class=\"LineTo\">44</span><span class=\"token plain\">\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">super</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">;</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 924px; height: 21px; width: 100%;\"><span class=\"LineTo\">45</span><span class=\"token plain\">\t\t</span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">this</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">.</span><span class=\"token plain\">hooks </span><span class=\"token operator\" style=\"color: rgb(127, 219, 202);\">=</span><span class=\"token plain\"> </span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">{</span><span class=\"token plain\"></span></div><div class=\"token-line CollapsedLine\" style=\"position: absolute; left: 0px; top: 945px; height: 21px; width: 100%;\"><span class=\"PlusIcon\">+ </span><div class=\"InnerLine\"></div></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 966px; height: 21px; width: 100%;\"><span class=\"LineTo\">72</span><span class=\"token plain\">\t\t\t</span><span class=\"token comment\" style=\"color: rgb(99, 119, 119); font-style: italic;\">/** @type {AsyncSeriesHook&lt;CompilationParams&gt;} */</span><span class=\"token plain\"></span></div><div class=\"token-line Storytelling\" data-explanation-code-line-id=\"0\" style=\"position: absolute; left: 0px; top: 987px; height: 21px; width: 100%;\"><span class=\"LineTo\">73</span><span class=\"token plain\">\t\t\tbeforeCompile</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">:</span><span class=\"token plain\"> </span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">new</span><span class=\"token plain\"> </span><span class=\"token class-name\" style=\"color: rgb(255, 203, 139);\">AsyncSeriesHook</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">[</span><span class=\"token string\" style=\"color: rgb(173, 219, 103);\">\"params\"</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">]</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 1008px; height: 21px; width: 100%;\"><span class=\"LineTo\">74</span><span class=\"token plain\">\t\t\t</span><span class=\"token comment\" style=\"color: rgb(99, 119, 119); font-style: italic;\">/** @type {SyncHook&lt;CompilationParams&gt;} */</span><span class=\"token plain\"></span></div><div class=\"token-line Storytelling\" data-explanation-code-line-id=\"1\" style=\"position: absolute; left: 0px; top: 1029px; height: 21px; width: 100%;\"><span class=\"LineTo\">75</span><span class=\"token plain\">\t\t\tcompile</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">:</span><span class=\"token plain\"> </span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">new</span><span class=\"token plain\"> </span><span class=\"token class-name\" style=\"color: rgb(255, 203, 139);\">SyncHook</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">[</span><span class=\"token string\" style=\"color: rgb(173, 219, 103);\">\"params\"</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">]</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 1050px; height: 21px; width: 100%;\"><span class=\"LineTo\">76</span><span class=\"token plain\">\t\t\t</span><span class=\"token comment\" style=\"color: rgb(99, 119, 119); font-style: italic;\">/** @type {AsyncParallelHook&lt;Compilation&gt;} */</span><span class=\"token plain\"></span></div><div class=\"token-line Storytelling\" data-explanation-code-line-id=\"2\" style=\"position: absolute; left: 0px; top: 1071px; height: 21px; width: 100%;\"><span class=\"LineTo\">77</span><span class=\"token plain\">\t\t\tmake</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">:</span><span class=\"token plain\"> </span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">new</span><span class=\"token plain\"> </span><span class=\"token class-name\" style=\"color: rgb(255, 203, 139);\">AsyncParallelHook</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">[</span><span class=\"token string\" style=\"color: rgb(173, 219, 103);\">\"compilation\"</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">]</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 1092px; height: 21px; width: 100%;\"><span class=\"LineTo\">78</span><span class=\"token plain\">\t\t\t</span><span class=\"token comment\" style=\"color: rgb(99, 119, 119); font-style: italic;\">/** @type {AsyncSeriesHook&lt;Compilation&gt;} */</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 1113px; height: 21px; width: 100%;\"><span class=\"LineTo\">79</span><span class=\"token plain\">\t\t\tafterCompile</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">:</span><span class=\"token plain\"> </span><span class=\"token keyword\" style=\"color: rgb(127, 219, 202);\">new</span><span class=\"token plain\"> </span><span class=\"token class-name\" style=\"color: rgb(255, 203, 139);\">AsyncSeriesHook</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">(</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">[</span><span class=\"token string\" style=\"color: rgb(173, 219, 103);\">\"compilation\"</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">]</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">)</span><span class=\"token punctuation\" style=\"color: rgb(199, 146, 234);\">,</span><span class=\"token plain\"></span></div><div class=\"token-line\" style=\"position: absolute; left: 0px; top: 1134px; height: 21px; width: 100%;\"><span class=\"LineTo\">80</span><span class=\"token plain\" style=\"display: inline-block;\"></span></div></div></div></div><div class=\"resize-triggers\"><div class=\"expand-trigger\"><div style=\"width: 567px; height: 258px;\"></div></div><div class=\"contract-trigger\"></div></div></pre></div></div><div class=\"ExplanationRoot react-draggable\" data-order-number=\"0\" data-root-id=\"explanation-0\" data-snapshot-play-item=\"explanation\" data-snapshot-play-group=\"0\" data-position-x=\"17\" data-position-y=\"147\" style=\"transform: translate(17px, 147px);\"><div class=\"ExplanationContainer isOrderNumber\"><div class=\"Header\"><strong class=\"Drag isOrderNumber\"></strong><a class=\"MenuButton isOrderNumber\"><span role=\"img\" aria-label=\"menu\" class=\"anticon anticon-menu\"><svg viewBox=\"64 64 896 896\" focusable=\"false\" data-icon=\"menu\" width=\"1em\" height=\"1em\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M904 160H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0 624H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0-312H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8z\"></path></svg></span></a></div><div class=\"ExplanationContent isOrderNumber\"><pre>0</pre><input spellcheck=\"false\" class=\"InputArea\" placeholder=\"0\" maxlength=\"2\" value=\"0\"></div></div></div><div class=\"ExplanationRoot react-draggable\" data-order-number=\"1\" data-root-id=\"explanation-1\" data-snapshot-play-item=\"explanation\" data-snapshot-play-group=\"1\" data-position-x=\"17\" data-position-y=\"189\" style=\"transform: translate(17px, 189px);\"><div class=\"ExplanationContainer isOrderNumber\"><div class=\"Header\"><strong class=\"Drag isOrderNumber\"></strong><a class=\"MenuButton isOrderNumber\"><span role=\"img\" aria-label=\"menu\" class=\"anticon anticon-menu\"><svg viewBox=\"64 64 896 896\" focusable=\"false\" data-icon=\"menu\" width=\"1em\" height=\"1em\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M904 160H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0 624H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0-312H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8z\"></path></svg></span></a></div><div class=\"ExplanationContent isOrderNumber\"><pre>1</pre><input spellcheck=\"false\" class=\"InputArea\" placeholder=\"0\" maxlength=\"2\" value=\"1\"></div></div></div><div class=\"ExplanationRoot react-draggable\" data-order-number=\"2\" data-root-id=\"explanation-2\" data-snapshot-play-item=\"explanation\" data-snapshot-play-group=\"2\" data-position-x=\"17\" data-position-y=\"231\" style=\"transform: translate(17px, 231px);\"><div class=\"ExplanationContainer isOrderNumber\"><div class=\"Header\"><strong class=\"Drag isOrderNumber\"></strong><a class=\"MenuButton isOrderNumber\"><span role=\"img\" aria-label=\"menu\" class=\"anticon anticon-menu\"><svg viewBox=\"64 64 896 896\" focusable=\"false\" data-icon=\"menu\" width=\"1em\" height=\"1em\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M904 160H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0 624H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8zm0-312H120c-4.4 0-8 3.6-8 8v64c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-64c0-4.4-3.6-8-8-8z\"></path></svg></span></a></div><div class=\"ExplanationContent isOrderNumber\"><pre>2</pre><input spellcheck=\"false\" class=\"InputArea\" placeholder=\"0\" maxlength=\"2\" value=\"2\"></div></div></div>",
+      "author": {
+        "displayName": "Bohdan Liashenko"
+      },
+      "projects": [
+        {
+          "path": "https://github.com/webpack/webpack",
+          "name": "webpack@4.43.0"
+        }
+      ],
+      "userChoiceState": {
+        "dataBus": {
+          "explanationTooltipsMap": {
+            "lib/Compiler.js#73": {
+              "path": "lib/Compiler.js#73",
+              "type": "explanation",
+              "isOnConnection": false,
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/Compiler.js"
+              ],
+              "playGroup": 0,
+              "id": 0,
+              "lineNumber": 73,
+              "originalPoint": {
+                "originalOffset": 966,
+                "x": 0,
+                "y": 171
+              },
+              "positionPoint": {
+                "x": -22,
+                "y": 150
+              },
+              "positionPointWithOffset": {
+                "x": -22,
+                "y": 150
+              },
+              "isOrderNumber": true,
+              "content": "0"
+            },
+            "lib/Compiler.js#75": {
+              "path": "lib/Compiler.js#75",
+              "type": "explanation",
+              "isOnConnection": false,
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/Compiler.js"
+              ],
+              "playGroup": 1,
+              "id": 1,
+              "lineNumber": 75,
+              "isOrderNumber": true,
+              "content": "1",
+              "originalPoint": {
+                "originalOffset": 1008,
+                "x": 0,
+                "y": 213
+              },
+              "positionPoint": {
+                "x": -22,
+                "y": 192
+              },
+              "positionPointWithOffset": {
+                "x": -22,
+                "y": 192
+              }
+            },
+            "lib/Compiler.js#77": {
+              "path": "lib/Compiler.js#77",
+              "type": "explanation",
+              "isOnConnection": false,
+              "namespace": [
+                "lib"
+              ],
+              "involvedNodesPathList": [
+                "lib/Compiler.js"
+              ],
+              "playGroup": 2,
+              "id": 2,
+              "lineNumber": 77,
+              "isOrderNumber": true,
+              "content": "2",
+              "originalPoint": {
+                "originalOffset": 1050,
+                "x": 0,
+                "y": 255
+              },
+              "positionPoint": {
+                "x": -22,
+                "y": 234
+              },
+              "positionPointWithOffset": {
+                "x": -22,
+                "y": 234
+              }
+            }
+          }
+        }
+      },
+      "size": {
+        "width": 652,
+        "height": 345
+      }
+    }
+  ],
+  "author": {
+    "uid": "SkDbI2zEEae9RK2HtjG79fMWH9u2",
+    "displayName": "Bohdan Liashenko",
+    "email": "lyashenkoinc@gmail.com"
+  }
+}

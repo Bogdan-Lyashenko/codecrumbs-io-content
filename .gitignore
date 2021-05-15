@@ -1,0 +1,3 @@
+# Remove some common IDE working directories
+.idea
+.DS_STORE
