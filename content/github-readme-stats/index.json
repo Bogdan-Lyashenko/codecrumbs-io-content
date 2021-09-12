@@ -1,0 +1,21 @@
+{
+  "id": "story-6d08c398-0675-4422-9946-5c60727331ea-t-1631368394271",
+  "isLocalDraft": false,
+  "title": "Under the hood of github-readme-stats project",
+  "description": "",
+  "tags": "story,Bohdan Liashenko",
+  "type": "story",
+  "author": {
+    "userNameEmailHash": "Qm9oZGFuIExpYXNoZW5rbytseWFzaGVua29pbmNAZ21haWwuY29t",
+    "displayName": "Bohdan Liashenko",
+    "email": "lyashenkoinc@gmail.com"
+  },
+  "hash": 1631368394271,
+  "isRemote": false,
+  "isLocalFsStory": true,
+  "dataContentProjectDir": "/Users/bliashenko/Learning/codecrumbs-io-content/content",
+  "content": "## Intro\nRecently I came across this \"special\" picture in someone's Readme profile on Github, displaying profile stats, and it caught my curiosity. Yes, I am talking about this `github-readme-stats` widget, here is an example for my profile. \n\n![Example of the image for my profile (it is \"dynamic\" here as well)](https://github-readme-stats.vercel.app/api?username=Bogdan-Lyashenko&show_icons=true&hide=contribs)\n\n> It is \"dynamic\", meaning, every time you see this image it is going to be up to date with the current stats. \n\nHow it renders dynamic information inside of the static markdown page? Looks cool though, so I started digging - inspected source and quickly found out there is app running at [github-readme-stats.vercel.app](https://github-readme-stats.vercel.app/) so can be used by anyone, and it is an open source project [github-readme-stats](https://github.com/anuraghazra/github-readme-stats). Awesome, let's look under the hood then.\n\n## Short summary (TL;DR)\n*Summarize essence without going deep. *\n\n\n## Body\n*Long version*\n\n\n## Interesting facts & lessons\n*Put tips and discoveries here*\n\n\n## Want to learn more?\n*Advice how to continue learning this topic*",
+  "snapshotsAliasIdCount": 0,
+  "snapshots": [],
+  "categories": ["unpublished"]
+}
