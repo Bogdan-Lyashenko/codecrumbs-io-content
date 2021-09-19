@@ -1,0 +1,18 @@
+{
+  "id": "snapshot-1ce6b4da-913f-4048-bf5a-7d2c8493438c-t-1631367819794",
+  "aliasId": "10",
+  "title": "package.json",
+  "size": {
+    "width": 940,
+    "height": 225
+  },
+  "author": {
+    "userNameEmailHash": "Qm9oZGFuIExpYXNoZW5rbytseWFzaGVua29pbmNAZ21haWwuY29t",
+    "displayName": "Bohdan Liashenko",
+    "email": "lyashenkoinc@gmail.com"
+  },
+  "hash": 1632060477032,
+  "type": "snapshot",
+  "tags": "snapshot, Bohdan Liashenko",
+  "description": ""
+}

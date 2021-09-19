@@ -1,0 +1,277 @@
+{
+  "id": "snapshot-16800328-4f1b-47e1-9b69-3b0ea31a0c34-t-1631979447410",
+  "userChoiceState": {
+    "involvedNamespacesList": [
+      "github-readme-stats"
+    ],
+    "requiredProjectsSetupList": [
+      {
+        "projectDir": "/Users/bliashenko/Learning/github-readme-stats",
+        "dataContentProjectDir": "/Users/bliashenko/Learning/github-readme-stats/.codecrumbs",
+        "dataContentNamespace": "github-readme-stats",
+        "projectName": "github-readme-stats",
+        "namespace": "github-readme-stats",
+        "programmingLang": "*",
+        "programmingLangExtensions": [],
+        "excludePathsList": [
+          "\\.DS_Store"
+        ],
+        "keepExistingNamespaces": false,
+        "remoteExternalPath": "https://github.com/anuraghazra/github-readme-stats/blob/master",
+        "timestamp": 1632060228610
+      }
+    ],
+    "dataBus": {
+      "openedFolders": {},
+      "openedCodeFilesMap": {
+        "github-readme-stats/src/fetchers/stats-fetcher.js": {
+          "path": "github-readme-stats/src/fetchers/stats-fetcher.js",
+          "namespace": "github-readme-stats",
+          "openFileIndex": 0,
+          "playGroup": 0,
+          "id": 1,
+          "type": "openedCodeFile",
+          "height": 690,
+          "width": 510,
+          "positionPoint": {
+            "x": 0,
+            "y": 0
+          },
+          "positionPointWithOffset": {
+            "x": 60,
+            "y": -10
+          },
+          "isHeightResizing": false,
+          "calcLayout": true,
+          "scrollTop": 166,
+          "linesSelectionRangeMap": {
+            "22": {
+              "n": 22,
+              "start": 22,
+              "end": 43,
+              "id": "start22_end43",
+              "playGroup": 0,
+              "isStarted": false,
+              "collapse": true
+            },
+            "52": {
+              "n": 35,
+              "start": 52,
+              "end": 86,
+              "id": "start52_end86",
+              "playGroup": 0,
+              "isStarted": false,
+              "collapse": true
+            },
+            "92": {
+              "n": 12,
+              "start": 92,
+              "end": 103,
+              "id": "start92_end103",
+              "playGroup": 0,
+              "isStarted": false,
+              "collapse": true
+            }
+          },
+          "isDragging": false,
+          "positionOffset": {
+            "x": 60,
+            "y": -10
+          },
+          "calcPosition": true,
+          "isWidthResizing": false,
+          "fileCode": "const axios = require(\"axios\");\nconst githubUsernameRegex = require(\"github-username-regex\");\n\nconst retryer = require(\"../common/retryer\");\nconst calculateRank = require(\"../calculateRank\");\nconst { request, logger, CustomError } = require(\"../common/utils\");\n\nrequire(\"dotenv\").config();\n\nconst fetcher = (variables, token) => {\n  return request(\n    {\n      query: `\n      query userInfo($login: String!) {\n        user(login: $login) {\n          name\n          login\n          contributionsCollection {\n            totalCommitContributions\n            restrictedContributionsCount\n          }\n          repositoriesContributedTo(first: 1, contributionTypes: [COMMIT, ISSUE, PULL_REQUEST, REPOSITORY]) {\n            totalCount\n          }\n          pullRequests(first: 1) {\n            totalCount\n          }\n          issues(first: 1) {\n            totalCount\n          }\n          followers {\n            totalCount\n          }\n          repositories(first: 100, ownerAffiliations: OWNER, orderBy: {direction: DESC, field: STARGAZERS}) {\n            totalCount\n            nodes {\n              stargazers {\n                totalCount\n              }\n            }\n          }\n        }\n      }\n      `,\n      variables,\n    },\n    {\n      Authorization: `bearer ${token}`,\n    },\n  );\n};\n\n// https://github.com/anuraghazra/github-readme-stats/issues/92#issuecomment-661026467\n// https://github.com/anuraghazra/github-readme-stats/pull/211/\nconst totalCommitsFetcher = async (username) => {\n  if (!githubUsernameRegex.test(username)) {\n    logger.log(\"Invalid username\");\n    return 0;\n  }\n\n  // https://developer.github.com/v3/search/#search-commits\n  const fetchTotalCommits = (variables, token) => {\n    return axios({\n      method: \"get\",\n      url: `https://api.github.com/search/commits?q=author:${variables.login}`,\n      headers: {\n        \"Content-Type\": \"application/json\",\n        Accept: \"application/vnd.github.cloak-preview\",\n        Authorization: `bearer ${token}`,\n      },\n    });\n  };\n\n  try {\n    let res = await retryer(fetchTotalCommits, { login: username });\n    if (res.data.total_count) {\n      return res.data.total_count;\n    }\n  } catch (err) {\n    logger.log(err);\n    // just return 0 if there is something wrong so that\n    // we don't break the whole app\n    return 0;\n  }\n};\n\nasync function fetchStats(\n  username,\n  count_private = false,\n  include_all_commits = false,\n) {\n  if (!username) throw Error(\"Invalid username\");\n\n  const stats = {\n    name: \"\",\n    totalPRs: 0,\n    totalCommits: 0,\n    totalIssues: 0,\n    totalStars: 0,\n    contributedTo: 0,\n    rank: { level: \"C\", score: 0 },\n  };\n\n  let res = await retryer(fetcher, { login: username });\n\n  if (res.data.errors) {\n    logger.error(res.data.errors);\n    throw new CustomError(\n      res.data.errors[0].message || \"Could not fetch user\",\n      CustomError.USER_NOT_FOUND,\n    );\n  }\n\n  const user = res.data.data.user;\n\n  stats.name = user.name || user.login;\n  stats.totalIssues = user.issues.totalCount;\n\n  // normal commits\n  stats.totalCommits = user.contributionsCollection.totalCommitContributions;\n\n  // if include_all_commits then just get that,\n  // since totalCommitsFetcher already sends totalCommits no need to +=\n  if (include_all_commits) {\n    stats.totalCommits = await totalCommitsFetcher(username);\n  }\n\n  // if count_private then add private commits to totalCommits so far.\n  if (count_private) {\n    stats.totalCommits +=\n      user.contributionsCollection.restrictedContributionsCount;\n  }\n\n  stats.totalPRs = user.pullRequests.totalCount;\n  stats.contributedTo = user.repositoriesContributedTo.totalCount;\n\n  stats.totalStars = user.repositories.nodes.reduce((prev, curr) => {\n    return prev + curr.stargazers.totalCount;\n  }, 0);\n\n  stats.rank = calculateRank({\n    totalCommits: stats.totalCommits,\n    totalRepos: user.repositories.totalCount,\n    followers: user.followers.totalCount,\n    contributions: stats.contributedTo,\n    stargazers: stats.totalStars,\n    prs: stats.totalPRs,\n    issues: stats.totalIssues,\n  });\n\n  return stats;\n}\n\nmodule.exports = fetchStats;\n"
+        },
+        "github-readme-stats/src/common/utils.js": {
+          "path": "github-readme-stats/src/common/utils.js",
+          "namespace": "github-readme-stats",
+          "openFileIndex": 1,
+          "playGroup": 2,
+          "id": 2,
+          "type": "openedCodeFile",
+          "height": 250,
+          "width": 490,
+          "positionPoint": {
+            "x": 900,
+            "y": 0
+          },
+          "positionPointWithOffset": {
+            "x": 650,
+            "y": 110
+          },
+          "scrollTop": 1653,
+          "isDragging": false,
+          "positionOffset": {
+            "x": -250,
+            "y": 110
+          },
+          "calcLayout": true,
+          "calcPosition": true,
+          "isWidthResizing": false,
+          "isHeightResizing": false,
+          "fileCode": "const axios = require(\"axios\");\nconst wrap = require(\"word-wrap\");\nconst themes = require(\"../../themes\");\n\nconst renderError = (message, secondaryMessage = \"\") => {\n  return `\n    <svg width=\"495\" height=\"120\" viewBox=\"0 0 495 120\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n    <style>\n    .text { font: 600 16px 'Segoe UI', Ubuntu, Sans-Serif; fill: #2F80ED }\n    .small { font: 600 12px 'Segoe UI', Ubuntu, Sans-Serif; fill: #252525 }\n    .gray { fill: #858585 }\n    </style>\n    <rect x=\"0.5\" y=\"0.5\" width=\"494\" height=\"99%\" rx=\"4.5\" fill=\"#FFFEFE\" stroke=\"#E4E2E2\"/>\n    <text x=\"25\" y=\"45\" class=\"text\">Something went wrong! file an issue at https://git.io/JJmN9</text>\n    <text data-testid=\"message\" x=\"25\" y=\"55\" class=\"text small\">\n      <tspan x=\"25\" dy=\"18\">${encodeHTML(message)}</tspan>\n      <tspan x=\"25\" dy=\"18\" class=\"gray\">${secondaryMessage}</tspan>\n    </text>\n    </svg>\n  `;\n};\n\n// https://stackoverflow.com/a/48073476/10629172\nfunction encodeHTML(str) {\n  return str\n    .replace(/[\\u00A0-\\u9999<>&](?!#)/gim, (i) => {\n      return \"&#\" + i.charCodeAt(0) + \";\";\n    })\n    .replace(/\\u0008/gim, \"\");\n}\n\nfunction kFormatter(num) {\n  return Math.abs(num) > 999\n    ? Math.sign(num) * (Math.abs(num) / 1000).toFixed(1) + \"k\"\n    : Math.sign(num) * Math.abs(num);\n}\n\nfunction isValidHexColor(hexColor) {\n  return new RegExp(\n    /^([A-Fa-f0-9]{8}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{3}|[A-Fa-f0-9]{4})$/,\n  ).test(hexColor);\n}\n\nfunction parseBoolean(value) {\n  if (value === \"true\") {\n    return true;\n  } else if (value === \"false\") {\n    return false;\n  } else {\n    return value;\n  }\n}\n\nfunction parseArray(str) {\n  if (!str) return [];\n  return str.split(\",\");\n}\n\nfunction clampValue(number, min, max) {\n  return Math.max(min, Math.min(number, max));\n}\n\nfunction isValidGradient(colors) {\n  return isValidHexColor(colors[1]) && isValidHexColor(colors[2]);\n}\n\nfunction fallbackColor(color, fallbackColor) {\n  let colors = color.split(\",\");\n  let gradient = null;\n\n  if (colors.length > 1 && isValidGradient(colors)) {\n    gradient = colors;\n  }\n\n  return (\n    (gradient ? gradient : isValidHexColor(color) && `#${color}`) ||\n    fallbackColor\n  );\n}\n\nfunction request(data, headers) {\n  return axios({\n    url: \"https://api.github.com/graphql\",\n    method: \"post\",\n    headers,\n    data,\n  });\n}\n\n/**\n *\n * @param {String[]} items\n * @param {Number} gap\n * @param {string} direction\n *\n * @description\n * Auto layout utility, allows us to layout things\n * vertically or horizontally with proper gaping\n */\nfunction flexLayout({ items, gap, direction }) {\n  // filter() for filtering out empty strings\n  return items.filter(Boolean).map((item, i) => {\n    let transform = `translate(${gap * i}, 0)`;\n    if (direction === \"column\") {\n      transform = `translate(0, ${gap * i})`;\n    }\n    return `<g transform=\"${transform}\">${item}</g>`;\n  });\n}\n\n// returns theme based colors with proper overrides and defaults\nfunction getCardColors({\n  title_color,\n  text_color,\n  icon_color,\n  bg_color,\n  theme,\n  border_color,\n  fallbackTheme = \"default\",\n}) {\n  const defaultTheme = themes[fallbackTheme];\n  const selectedTheme = themes[theme] || defaultTheme;\n  const defaultBorderColor =\n    selectedTheme.border_color || defaultTheme.border_color;\n\n  // get the color provided by the user else the theme color\n  // finally if both colors are invalid fallback to default theme\n  const titleColor = fallbackColor(\n    title_color || selectedTheme.title_color,\n    \"#\" + defaultTheme.title_color,\n  );\n  const iconColor = fallbackColor(\n    icon_color || selectedTheme.icon_color,\n    \"#\" + defaultTheme.icon_color,\n  );\n  const textColor = fallbackColor(\n    text_color || selectedTheme.text_color,\n    \"#\" + defaultTheme.text_color,\n  );\n  const bgColor = fallbackColor(\n    bg_color || selectedTheme.bg_color,\n    \"#\" + defaultTheme.bg_color,\n  );\n\n  const borderColor = fallbackColor(\n    border_color || defaultBorderColor,\n    \"#\" + defaultBorderColor,\n  );\n\n  return { titleColor, iconColor, textColor, bgColor, borderColor };\n}\n\nfunction wrapTextMultiline(text, width = 60, maxLines = 3) {\n  const wrapped = wrap(encodeHTML(text), { width })\n    .split(\"\\n\") // Split wrapped lines to get an array of lines\n    .map((line) => line.trim()); // Remove leading and trailing whitespace of each line\n\n  const lines = wrapped.slice(0, maxLines); // Only consider maxLines lines\n\n  // Add \"...\" to the last line if the text exceeds maxLines\n  if (wrapped.length > maxLines) {\n    lines[maxLines - 1] += \"...\";\n  }\n\n  // Remove empty lines if text fits in less than maxLines lines\n  const multiLineText = lines.filter(Boolean);\n  return multiLineText;\n}\n\nconst noop = () => {};\n// return console instance based on the environment\nconst logger =\n  process.env.NODE_ENV !== \"test\" ? console : { log: noop, error: noop };\n\nconst CONSTANTS = {\n  THIRTY_MINUTES: 1800,\n  TWO_HOURS: 7200,\n  FOUR_HOURS: 14400,\n  ONE_DAY: 86400,\n};\n\nconst SECONDARY_ERROR_MESSAGES = {\n  MAX_RETRY:\n    \"Please add an env variable called PAT_1 with your github token in vercel\",\n  USER_NOT_FOUND: \"Make sure the provided username is not an organization\",\n};\n\nclass CustomError extends Error {\n  constructor(message, type) {\n    super(message);\n    this.type = type;\n    this.secondaryMessage = SECONDARY_ERROR_MESSAGES[type] || \"adsad\";\n  }\n\n  static MAX_RETRY = \"MAX_RETRY\";\n  static USER_NOT_FOUND = \"USER_NOT_FOUND\";\n}\n\n// https://stackoverflow.com/a/48172630/10629172\nfunction measureText(str, fontSize = 10) {\n  // prettier-ignore\n  const widths = [\n    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,\n    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,\n    0, 0, 0, 0, 0.2796875, 0.2765625,\n    0.3546875, 0.5546875, 0.5546875, 0.8890625, 0.665625, 0.190625,\n    0.3328125, 0.3328125, 0.3890625, 0.5828125, 0.2765625, 0.3328125,\n    0.2765625, 0.3015625, 0.5546875, 0.5546875, 0.5546875, 0.5546875,\n    0.5546875, 0.5546875, 0.5546875, 0.5546875, 0.5546875, 0.5546875,\n    0.2765625, 0.2765625, 0.584375, 0.5828125, 0.584375, 0.5546875,\n    1.0140625, 0.665625, 0.665625, 0.721875, 0.721875, 0.665625,\n    0.609375, 0.7765625, 0.721875, 0.2765625, 0.5, 0.665625,\n    0.5546875, 0.8328125, 0.721875, 0.7765625, 0.665625, 0.7765625,\n    0.721875, 0.665625, 0.609375, 0.721875, 0.665625, 0.94375,\n    0.665625, 0.665625, 0.609375, 0.2765625, 0.3546875, 0.2765625,\n    0.4765625, 0.5546875, 0.3328125, 0.5546875, 0.5546875, 0.5,\n    0.5546875, 0.5546875, 0.2765625, 0.5546875, 0.5546875, 0.221875,\n    0.240625, 0.5, 0.221875, 0.8328125, 0.5546875, 0.5546875,\n    0.5546875, 0.5546875, 0.3328125, 0.5, 0.2765625, 0.5546875,\n    0.5, 0.721875, 0.5, 0.5, 0.5, 0.3546875, 0.259375, 0.353125, 0.5890625,\n  ];\n\n  const avg = 0.5279276315789471;\n  return (\n    str\n      .split(\"\")\n      .map((c) =>\n        c.charCodeAt(0) < widths.length ? widths[c.charCodeAt(0)] : avg,\n      )\n      .reduce((cur, acc) => acc + cur) * fontSize\n  );\n}\nconst lowercaseTrim = (name) => name.toLowerCase().trim();\n\nmodule.exports = {\n  renderError,\n  kFormatter,\n  encodeHTML,\n  isValidHexColor,\n  request,\n  parseArray,\n  parseBoolean,\n  fallbackColor,\n  flexLayout,\n  getCardColors,\n  clampValue,\n  wrapTextMultiline,\n  measureText,\n  logger,\n  CONSTANTS,\n  CustomError,\n  lowercaseTrim,\n};\n"
+        }
+      },
+      "nextOpenFileIndex": 2,
+      "storyTellingPointsMap": {
+        "github-readme-stats/src/fetchers/stats-fetcher.js": {
+          "namespace": "github-readme-stats",
+          "count": null
+        },
+        "github-readme-stats/api/index.js": {
+          "namespace": "github-readme-stats",
+          "count": null
+        },
+        "github-readme-stats/src/common/utils.js": {
+          "namespace": "github-readme-stats",
+          "count": 1
+        }
+      },
+      "storyTellingConnections": [
+        {
+          "from": {
+            "direction": "from",
+            "path": "github-readme-stats/src/fetchers/stats-fetcher.js",
+            "lineNumber": 104,
+            "codeAround": {
+              "prevLine": "",
+              "currentLine": "  let res = await retryer(fetcher, { login: username });",
+              "nextLine": ""
+            },
+            "type": "connection",
+            "namespace": [
+              "github-readme-stats"
+            ],
+            "involvedNodesPathList": [
+              "github-readme-stats/src/fetchers/stats-fetcher.js"
+            ],
+            "id": 0,
+            "playGroup": 1,
+            "color": "Color1"
+          },
+          "to": {
+            "direction": "to",
+            "path": "github-readme-stats/src/fetchers/stats-fetcher.js",
+            "lineNumber": 10,
+            "codeAround": {
+              "prevLine": "",
+              "currentLine": "const fetcher = (variables, token) => {",
+              "nextLine": "  return request("
+            },
+            "type": "connection",
+            "namespace": [
+              "github-readme-stats"
+            ],
+            "involvedNodesPathList": [
+              "github-readme-stats/src/fetchers/stats-fetcher.js"
+            ],
+            "id": 0,
+            "playGroup": 1,
+            "color": "Color1"
+          },
+          "path": "github-readme-stats/src/fetchers/stats-fetcher.js#104|github-readme-stats/src/fetchers/stats-fetcher.js#10",
+          "type": "connection",
+          "namespace": [
+            "github-readme-stats"
+          ],
+          "involvedNodesPathList": [
+            "github-readme-stats/src/fetchers/stats-fetcher.js"
+          ],
+          "id": 0,
+          "playGroup": 1,
+          "color": "Color1"
+        },
+        {
+          "from": {
+            "direction": "from",
+            "path": "github-readme-stats/src/fetchers/stats-fetcher.js",
+            "lineNumber": 11,
+            "codeAround": {
+              "prevLine": "const fetcher = (variables, token) => {",
+              "currentLine": "  return request(",
+              "nextLine": "    {"
+            },
+            "type": "connection",
+            "namespace": [
+              "github-readme-stats"
+            ],
+            "involvedNodesPathList": [
+              "github-readme-stats/src/fetchers/stats-fetcher.js",
+              "github-readme-stats/src/common/utils.js"
+            ],
+            "id": 2,
+            "playGroup": 2,
+            "color": "Color4"
+          },
+          "to": {
+            "direction": "to",
+            "path": "github-readme-stats/src/common/utils.js",
+            "lineNumber": 81,
+            "codeAround": {
+              "prevLine": "",
+              "currentLine": "function request(data, headers) {",
+              "nextLine": "  return axios({"
+            },
+            "type": "connection",
+            "namespace": [
+              "github-readme-stats"
+            ],
+            "involvedNodesPathList": [
+              "github-readme-stats/src/fetchers/stats-fetcher.js",
+              "github-readme-stats/src/common/utils.js"
+            ],
+            "id": 2,
+            "playGroup": 2,
+            "color": "Color4"
+          },
+          "path": "github-readme-stats/src/fetchers/stats-fetcher.js#11|github-readme-stats/src/common/utils.js#81",
+          "type": "connection",
+          "namespace": [
+            "github-readme-stats"
+          ],
+          "involvedNodesPathList": [
+            "github-readme-stats/src/fetchers/stats-fetcher.js",
+            "github-readme-stats/src/common/utils.js"
+          ],
+          "id": 2,
+          "playGroup": 2,
+          "color": "Color4"
+        }
+      ],
+      "explanationTooltipsMap": {},
+      "notesList": [
+        {
+          "position": {
+            "x": 718,
+            "y": 437
+          },
+          "resize": {
+            "x": 133,
+            "y": 10
+          },
+          "width": 250,
+          "height": 150,
+          "id": 0,
+          "playGroup": 3,
+          "type": "note",
+          "dragging": false,
+          "resizing": false,
+          "content": "graphql endpoint is used to send POST requests. Alternatively one can use @octokit/rest client to simplify interactions with Github API (instead of create graphql queries you can call particular helper for the same operation). "
+        }
+      ]
+    },
+    "controlsBus": {
+      "checkedState": {
+        "explorerBar": true,
+        "rightPanelBar": false,
+        "sourceDiagramOn": false,
+        "sourceKeepOnlyActiveItems": true
+      },
+      "valuesState": {
+        "tilesGridMode": "1_h",
+        "selectedRightPanelBarTab": "annotations"
+      },
+      "disabledState": {}
+    }
+  }
+}

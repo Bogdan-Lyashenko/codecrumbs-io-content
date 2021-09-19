@@ -1,0 +1,712 @@
+{
+  "id": "snapshot-85728680-333e-43e8-bdea-e70a4a0a67ec-t-1631971509193",
+  "userChoiceState": {
+    "involvedNamespacesList": [
+      "github-readme-stats"
+    ],
+    "requiredProjectsSetupList": [
+      {
+        "projectDir": "/Users/bliashenko/Learning/github-readme-stats",
+        "dataContentProjectDir": "/Users/bliashenko/Learning/github-readme-stats/.codecrumbs",
+        "dataContentNamespace": "github-readme-stats",
+        "projectName": "github-readme-stats",
+        "namespace": "github-readme-stats",
+        "programmingLang": "*",
+        "programmingLangExtensions": [],
+        "excludePathsList": [
+          "\\.DS_Store"
+        ],
+        "keepExistingNamespaces": false,
+        "remoteExternalPath": "https://github.com/anuraghazra/github-readme-stats/blob/master",
+        "timestamp": 1632060228610
+      }
+    ],
+    "dataBus": {
+      "openedFolders": {},
+      "openedCodeFilesMap": {
+        "github-readme-stats/api/index.js": {
+          "path": "github-readme-stats/api/index.js",
+          "namespace": "github-readme-stats",
+          "openFileIndex": 0,
+          "playGroup": 0,
+          "id": 0,
+          "type": "openedCodeFile",
+          "height": 540,
+          "width": 640,
+          "positionPoint": {
+            "x": 0,
+            "y": 0
+          },
+          "positionPointWithOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "isHeightResizing": false,
+          "calcLayout": true,
+          "scrollTop": 261,
+          "isWidthResizing": false,
+          "linesSelectionRangeMap": {
+            "19": {
+              "n": 17,
+              "start": 19,
+              "end": 35,
+              "id": "start19_end35",
+              "playGroup": 0,
+              "isStarted": false,
+              "collapse": true
+            },
+            "40": {
+              "n": 9,
+              "start": 40,
+              "end": 48,
+              "id": "start40_end48",
+              "playGroup": 0,
+              "isStarted": false,
+              "collapse": true
+            },
+            "55": {
+              "n": 9,
+              "start": 55,
+              "end": 63,
+              "id": "start55_end63",
+              "playGroup": 0,
+              "isStarted": false,
+              "collapse": true
+            }
+          },
+          "fileCode": "require(\"dotenv\").config();\nconst {\n  renderError,\n  parseBoolean,\n  parseArray,\n  clampValue,\n  CONSTANTS,\n} = require(\"../src/common/utils\");\nconst fetchStats = require(\"../src/fetchers/stats-fetcher\");\nconst renderStatsCard = require(\"../src/cards/stats-card\");\nconst blacklist = require(\"../src/common/blacklist\");\nconst { isLocaleAvailable } = require(\"../src/translations\");\n\nmodule.exports = async (req, res) => {\n  const {\n    username,\n    hide,\n    hide_title,\n    hide_border,\n    hide_rank,\n    show_icons,\n    count_private,\n    include_all_commits,\n    line_height,\n    title_color,\n    icon_color,\n    text_color,\n    bg_color,\n    theme,\n    cache_seconds,\n    custom_title,\n    locale,\n    disable_animations,\n    border_radius,\n    border_color,\n  } = req.query;\n  let stats;\n\n  res.setHeader(\"Content-Type\", \"image/svg+xml\");\n\n  if (blacklist.includes(username)) {\n    return res.send(renderError(\"Something went wrong\"));\n  }\n\n  if (locale && !isLocaleAvailable(locale)) {\n    return res.send(renderError(\"Something went wrong\", \"Language not found\"));\n  }\n\n  try {\n    stats = await fetchStats(\n      username,\n      parseBoolean(count_private),\n      parseBoolean(include_all_commits),\n    );\n\n    const cacheSeconds = clampValue(\n      parseInt(cache_seconds || CONSTANTS.TWO_HOURS, 10),\n      CONSTANTS.TWO_HOURS,\n      CONSTANTS.ONE_DAY,\n    );\n\n    res.setHeader(\"Cache-Control\", `public, max-age=${cacheSeconds}`);\n\n    return res.send(\n      renderStatsCard(stats, {\n        hide: parseArray(hide),\n        show_icons: parseBoolean(show_icons),\n        hide_title: parseBoolean(hide_title),\n        hide_border: parseBoolean(hide_border),\n        hide_rank: parseBoolean(hide_rank),\n        include_all_commits: parseBoolean(include_all_commits),\n        line_height,\n        title_color,\n        icon_color,\n        text_color,\n        bg_color,\n        theme,\n        custom_title,\n        border_radius,\n        border_color,\n        locale: locale ? locale.toLowerCase() : null,\n        disable_animations: parseBoolean(disable_animations),\n      }),\n    );\n  } catch (err) {\n    return res.send(renderError(err.message, err.secondaryMessage));\n  }\n};\n"
+        },
+        "github-readme-stats/src/fetchers/stats-fetcher.js": {
+          "path": "github-readme-stats/src/fetchers/stats-fetcher.js",
+          "namespace": "github-readme-stats",
+          "openFileIndex": 1,
+          "playGroup": 1,
+          "id": 1,
+          "type": "openedCodeFile",
+          "height": 660,
+          "width": 630,
+          "positionPoint": {
+            "x": 740,
+            "y": 0
+          },
+          "positionPointWithOffset": {
+            "x": 729,
+            "y": 4
+          },
+          "scrollTop": 1786,
+          "isHeightResizing": false,
+          "calcLayout": true,
+          "linesSelectionRangeMap": {
+            "105": {
+              "n": 9,
+              "start": 105,
+              "end": 113,
+              "id": "start105_end113",
+              "playGroup": 0,
+              "isStarted": false,
+              "collapse": true
+            },
+            "115": {
+              "n": 22,
+              "start": 115,
+              "end": 136,
+              "id": "start115_end136",
+              "playGroup": 0,
+              "isStarted": false,
+              "collapse": true
+            },
+            "141": {
+              "n": 10,
+              "start": 141,
+              "end": 150,
+              "id": "start141_end150",
+              "playGroup": 0,
+              "isStarted": false,
+              "collapse": true
+            }
+          },
+          "isWidthResizing": false,
+          "isDragging": false,
+          "positionOffset": {
+            "x": -11,
+            "y": 4
+          },
+          "calcPosition": true,
+          "fileCode": "const axios = require(\"axios\");\nconst githubUsernameRegex = require(\"github-username-regex\");\n\nconst retryer = require(\"../common/retryer\");\nconst calculateRank = require(\"../calculateRank\");\nconst { request, logger, CustomError } = require(\"../common/utils\");\n\nrequire(\"dotenv\").config();\n\nconst fetcher = (variables, token) => {\n  return request(\n    {\n      query: `\n      query userInfo($login: String!) {\n        user(login: $login) {\n          name\n          login\n          contributionsCollection {\n            totalCommitContributions\n            restrictedContributionsCount\n          }\n          repositoriesContributedTo(first: 1, contributionTypes: [COMMIT, ISSUE, PULL_REQUEST, REPOSITORY]) {\n            totalCount\n          }\n          pullRequests(first: 1) {\n            totalCount\n          }\n          issues(first: 1) {\n            totalCount\n          }\n          followers {\n            totalCount\n          }\n          repositories(first: 100, ownerAffiliations: OWNER, orderBy: {direction: DESC, field: STARGAZERS}) {\n            totalCount\n            nodes {\n              stargazers {\n                totalCount\n              }\n            }\n          }\n        }\n      }\n      `,\n      variables,\n    },\n    {\n      Authorization: `bearer ${token}`,\n    },\n  );\n};\n\n// https://github.com/anuraghazra/github-readme-stats/issues/92#issuecomment-661026467\n// https://github.com/anuraghazra/github-readme-stats/pull/211/\nconst totalCommitsFetcher = async (username) => {\n  if (!githubUsernameRegex.test(username)) {\n    logger.log(\"Invalid username\");\n    return 0;\n  }\n\n  // https://developer.github.com/v3/search/#search-commits\n  const fetchTotalCommits = (variables, token) => {\n    return axios({\n      method: \"get\",\n      url: `https://api.github.com/search/commits?q=author:${variables.login}`,\n      headers: {\n        \"Content-Type\": \"application/json\",\n        Accept: \"application/vnd.github.cloak-preview\",\n        Authorization: `bearer ${token}`,\n      },\n    });\n  };\n\n  try {\n    let res = await retryer(fetchTotalCommits, { login: username });\n    if (res.data.total_count) {\n      return res.data.total_count;\n    }\n  } catch (err) {\n    logger.log(err);\n    // just return 0 if there is something wrong so that\n    // we don't break the whole app\n    return 0;\n  }\n};\n\nasync function fetchStats(\n  username,\n  count_private = false,\n  include_all_commits = false,\n) {\n  if (!username) throw Error(\"Invalid username\");\n\n  const stats = {\n    name: \"\",\n    totalPRs: 0,\n    totalCommits: 0,\n    totalIssues: 0,\n    totalStars: 0,\n    contributedTo: 0,\n    rank: { level: \"C\", score: 0 },\n  };\n\n  let res = await retryer(fetcher, { login: username });\n\n  if (res.data.errors) {\n    logger.error(res.data.errors);\n    throw new CustomError(\n      res.data.errors[0].message || \"Could not fetch user\",\n      CustomError.USER_NOT_FOUND,\n    );\n  }\n\n  const user = res.data.data.user;\n\n  stats.name = user.name || user.login;\n  stats.totalIssues = user.issues.totalCount;\n\n  // normal commits\n  stats.totalCommits = user.contributionsCollection.totalCommitContributions;\n\n  // if include_all_commits then just get that,\n  // since totalCommitsFetcher already sends totalCommits no need to +=\n  if (include_all_commits) {\n    stats.totalCommits = await totalCommitsFetcher(username);\n  }\n\n  // if count_private then add private commits to totalCommits so far.\n  if (count_private) {\n    stats.totalCommits +=\n      user.contributionsCollection.restrictedContributionsCount;\n  }\n\n  stats.totalPRs = user.pullRequests.totalCount;\n  stats.contributedTo = user.repositoriesContributedTo.totalCount;\n\n  stats.totalStars = user.repositories.nodes.reduce((prev, curr) => {\n    return prev + curr.stargazers.totalCount;\n  }, 0);\n\n  stats.rank = calculateRank({\n    totalCommits: stats.totalCommits,\n    totalRepos: user.repositories.totalCount,\n    followers: user.followers.totalCount,\n    contributions: stats.contributedTo,\n    stargazers: stats.totalStars,\n    prs: stats.totalPRs,\n    issues: stats.totalIssues,\n  });\n\n  return stats;\n}\n\nmodule.exports = fetchStats;\n"
+        },
+        "github-readme-stats/src/cards/stats-card.js": {
+          "path": "github-readme-stats/src/cards/stats-card.js",
+          "namespace": "github-readme-stats",
+          "openFileIndex": 2,
+          "playGroup": 3,
+          "id": 2,
+          "type": "openedCodeFile",
+          "height": 620,
+          "width": 640,
+          "positionPoint": {
+            "x": 1490,
+            "y": 0
+          },
+          "positionPointWithOffset": {
+            "x": -5,
+            "y": 600
+          },
+          "isDragging": false,
+          "positionOffset": {
+            "x": -1495,
+            "y": 600
+          },
+          "calcLayout": true,
+          "calcPosition": true,
+          "scrollTop": 982,
+          "isHeightResizing": false,
+          "isWidthResizing": false,
+          "linesSelectionRangeMap": {
+            "58": {
+              "n": 156,
+              "start": 58,
+              "end": 213,
+              "id": "start58_end213",
+              "playGroup": 0,
+              "isStarted": false,
+              "collapse": true
+            },
+            "215": {
+              "n": 12,
+              "start": 215,
+              "end": 226,
+              "id": "start215_end226",
+              "playGroup": 0,
+              "isStarted": false,
+              "collapse": true
+            },
+            "229": {
+              "n": 6,
+              "start": 229,
+              "end": 234,
+              "id": "start229_end234",
+              "playGroup": 0,
+              "isStarted": false,
+              "collapse": true
+            },
+            "236": {
+              "n": 2,
+              "start": 236,
+              "end": 237,
+              "id": "start236_end237",
+              "playGroup": 0,
+              "isStarted": false,
+              "collapse": true
+            }
+          },
+          "fileCode": "const I18n = require(\"../common/I18n\");\nconst Card = require(\"../common/Card\");\nconst icons = require(\"../common/icons\");\nconst { getStyles } = require(\"../getStyles\");\nconst { statCardLocales } = require(\"../translations\");\nconst {\n  kFormatter,\n  flexLayout,\n  clampValue,\n  measureText,\n  getCardColors,\n} = require(\"../common/utils\");\n\nconst createTextNode = ({\n  icon,\n  label,\n  value,\n  id,\n  index,\n  showIcons,\n  shiftValuePos,\n}) => {\n  const kValue = kFormatter(value);\n  const staggerDelay = (index + 3) * 150;\n\n  const labelOffset = showIcons ? `x=\"25\"` : \"\";\n  const iconSvg = showIcons\n    ? `\n    <svg data-testid=\"icon\" class=\"icon\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\">\n      ${icon}\n    </svg>\n  `\n    : \"\";\n  return `\n    <g class=\"stagger\" style=\"animation-delay: ${staggerDelay}ms\" transform=\"translate(25, 0)\">\n      ${iconSvg}\n      <text class=\"stat bold\" ${labelOffset} y=\"12.5\">${label}:</text>\n      <text \n        class=\"stat\" \n        x=\"${(showIcons ? 140 : 120) + shiftValuePos}\" \n        y=\"12.5\" \n        data-testid=\"${id}\"\n      >${kValue}</text>\n    </g>\n  `;\n};\n\nconst renderStatsCard = (stats = {}, options = { hide: [] }) => {\n  const {\n    name,\n    totalStars,\n    totalCommits,\n    totalIssues,\n    totalPRs,\n    contributedTo,\n    rank,\n  } = stats;\n  const {\n    hide = [],\n    show_icons = false,\n    hide_title = false,\n    hide_border = false,\n    hide_rank = false,\n    include_all_commits = false,\n    line_height = 25,\n    title_color,\n    icon_color,\n    text_color,\n    bg_color,\n    theme = \"default\",\n    custom_title,\n    border_radius,\n    border_color,\n    locale,\n    disable_animations = false,\n  } = options;\n\n  const lheight = parseInt(line_height, 10);\n\n  // returns theme based colors with proper overrides and defaults\n  const { titleColor, textColor, iconColor, bgColor, borderColor } =\n    getCardColors({\n      title_color,\n      icon_color,\n      text_color,\n      bg_color,\n      border_color,\n      theme,\n    });\n\n  const apostrophe = [\"x\", \"s\"].includes(name.slice(-1).toLocaleLowerCase())\n    ? \"\"\n    : \"s\";\n  const i18n = new I18n({\n    locale,\n    translations: statCardLocales({ name, apostrophe }),\n  });\n\n  // Meta data for creating text nodes with createTextNode function\n  const STATS = {\n    stars: {\n      icon: icons.star,\n      label: i18n.t(\"statcard.totalstars\"),\n      value: totalStars,\n      id: \"stars\",\n    },\n    commits: {\n      icon: icons.commits,\n      label: `${i18n.t(\"statcard.commits\")}${\n        include_all_commits ? \"\" : ` (${new Date().getFullYear()})`\n      }`,\n      value: totalCommits,\n      id: \"commits\",\n    },\n    prs: {\n      icon: icons.prs,\n      label: i18n.t(\"statcard.prs\"),\n      value: totalPRs,\n      id: \"prs\",\n    },\n    issues: {\n      icon: icons.issues,\n      label: i18n.t(\"statcard.issues\"),\n      value: totalIssues,\n      id: \"issues\",\n    },\n    contribs: {\n      icon: icons.contribs,\n      label: i18n.t(\"statcard.contribs\"),\n      value: contributedTo,\n      id: \"contribs\",\n    },\n  };\n\n  const longLocales = [\n    \"cn\",\n    \"es\",\n    \"fr\",\n    \"pt-br\",\n    \"ru\",\n    \"uk-ua\",\n    \"id\",\n    \"my\",\n    \"pl\",\n    \"de\",\n    \"nl\",\n  ];\n  const isLongLocale = longLocales.includes(locale) === true;\n\n  // filter out hidden stats defined by user & create the text nodes\n  const statItems = Object.keys(STATS)\n    .filter((key) => !hide.includes(key))\n    .map((key, index) =>\n      // create the text nodes, and pass index so that we can calculate the line spacing\n      createTextNode({\n        ...STATS[key],\n        index,\n        showIcons: show_icons,\n        shiftValuePos:\n          (!include_all_commits ? 50 : 35) + (isLongLocale ? 50 : 0),\n      }),\n    );\n\n  // Calculate the card height depending on how many items there are\n  // but if rank circle is visible clamp the minimum height to `150`\n  let height = Math.max(\n    45 + (statItems.length + 1) * lheight,\n    hide_rank ? 0 : 150,\n  );\n\n  // Conditionally rendered elements\n  const rankCircle = hide_rank\n    ? \"\"\n    : `<g data-testid=\"rank-circle\" \n          transform=\"translate(400, ${height / 2 - 50})\">\n        <circle class=\"rank-circle-rim\" cx=\"-10\" cy=\"8\" r=\"40\" />\n        <circle class=\"rank-circle\" cx=\"-10\" cy=\"8\" r=\"40\" />\n        <g class=\"rank-text\">\n          <text\n            x=\"${rank.level.length === 1 ? \"-4\" : \"0\"}\"\n            y=\"0\"\n            alignment-baseline=\"central\"\n            dominant-baseline=\"central\"\n            text-anchor=\"middle\"\n          >\n            ${rank.level}\n          </text>\n        </g>\n      </g>`;\n\n  // the better user's score the the rank will be closer to zero so\n  // subtracting 100 to get the progress in 100%\n  const progress = 100 - rank.score;\n  const cssStyles = getStyles({\n    titleColor,\n    textColor,\n    iconColor,\n    show_icons,\n    progress,\n  });\n\n  const calculateTextWidth = () => {\n    return measureText(custom_title ? custom_title : i18n.t(\"statcard.title\"));\n  };\n\n  const width = hide_rank\n    ? clampValue(\n        50 /* padding */ + calculateTextWidth() * 2,\n        270 /* min */,\n        Infinity,\n      )\n    : 495;\n\n  const card = new Card({\n    customTitle: custom_title,\n    defaultTitle: i18n.t(\"statcard.title\"),\n    width,\n    height,\n    border_radius,\n    colors: {\n      titleColor,\n      textColor,\n      iconColor,\n      bgColor,\n      borderColor,\n    },\n  });\n\n  card.setHideBorder(hide_border);\n  card.setHideTitle(hide_title);\n  card.setCSS(cssStyles);\n\n  if (disable_animations) card.disableAnimations();\n\n  return card.render(`\n    ${rankCircle}\n\n    <svg x=\"0\" y=\"0\">\n      ${flexLayout({\n        items: statItems,\n        gap: lheight,\n        direction: \"column\",\n      }).join(\"\")}\n    </svg> \n  `);\n};\n\nmodule.exports = renderStatsCard;\n"
+        },
+        "github-readme-stats/src/common/Card.js": {
+          "path": "github-readme-stats/src/common/Card.js",
+          "namespace": "github-readme-stats",
+          "openFileIndex": 3,
+          "playGroup": 4,
+          "id": 3,
+          "type": "openedCodeFile",
+          "height": 510,
+          "width": 610,
+          "positionPoint": {
+            "x": 740,
+            "y": 710
+          },
+          "positionPointWithOffset": {
+            "x": 740,
+            "y": 710
+          },
+          "scrollTop": 2427,
+          "isHeightResizing": false,
+          "calcLayout": true,
+          "linesSelectionRangeMap": {
+            "126": {
+              "n": 36,
+              "start": 126,
+              "end": 161,
+              "id": "start126_end161",
+              "playGroup": 0,
+              "isStarted": false,
+              "collapse": true
+            }
+          },
+          "isWidthResizing": false,
+          "fileCode": "const { getAnimations } = require(\"../getStyles\");\nconst { flexLayout, encodeHTML } = require(\"../common/utils\");\n\nclass Card {\n  constructor({\n    width = 100,\n    height = 100,\n    border_radius = 4.5,\n    colors = {},\n    customTitle,\n    defaultTitle = \"\",\n    titlePrefixIcon,\n  }) {\n    this.width = width;\n    this.height = height;\n\n    this.hideBorder = false;\n    this.hideTitle = false;\n\n    this.border_radius = border_radius;\n\n    // returns theme based colors with proper overrides and defaults\n    this.colors = colors;\n    this.title =\n      customTitle !== undefined\n        ? encodeHTML(customTitle)\n        : encodeHTML(defaultTitle);\n\n    this.css = \"\";\n\n    this.paddingX = 25;\n    this.paddingY = 35;\n    this.titlePrefixIcon = titlePrefixIcon;\n    this.animations = true;\n  }\n\n  disableAnimations() {\n    this.animations = false;\n  }\n\n  setCSS(value) {\n    this.css = value;\n  }\n\n  setHideBorder(value) {\n    this.hideBorder = value;\n  }\n\n  setHideTitle(value) {\n    this.hideTitle = value;\n    if (value) {\n      this.height -= 30;\n    }\n  }\n\n  setTitle(text) {\n    this.title = text;\n  }\n\n  renderTitle() {\n    const titleText = `\n      <text\n        x=\"0\"\n        y=\"0\"\n        class=\"header\"\n        data-testid=\"header\"\n      >${this.title}</text>\n    `;\n\n    const prefixIcon = `\n      <svg\n        class=\"icon\"\n        x=\"0\"\n        y=\"-13\"\n        viewBox=\"0 0 16 16\"\n        version=\"1.1\"\n        width=\"16\"\n        height=\"16\"\n      >\n        ${this.titlePrefixIcon}\n      </svg>\n    `;\n    return `\n      <g\n        data-testid=\"card-title\"\n        transform=\"translate(${this.paddingX}, ${this.paddingY})\"\n      >\n        ${flexLayout({\n          items: [this.titlePrefixIcon && prefixIcon, titleText],\n          gap: 25,\n        }).join(\"\")}\n      </g>\n    `;\n  }\n\n  renderGradient() {\n    if (typeof this.colors.bgColor !== \"object\") return \"\";\n\n    const gradients = this.colors.bgColor.slice(1);\n    return typeof this.colors.bgColor === \"object\"\n      ? `\n        <defs>\n          <linearGradient\n            id=\"gradient\" \n            gradientTransform=\"rotate(${this.colors.bgColor[0]})\"\n          >\n            ${gradients.map((grad, index) => {\n              let offset = (index * 100) / (gradients.length - 1);\n              return `<stop offset=\"${offset}%\" stop-color=\"#${grad}\" />`;\n            })}\n          </linearGradient>\n        </defs>\n        `\n      : \"\";\n  }\n\n  render(body) {\n    return `\n      <svg\n        width=\"${this.width}\"\n        height=\"${this.height}\"\n        viewBox=\"0 0 ${this.width} ${this.height}\"\n        fill=\"none\"\n        xmlns=\"http://www.w3.org/2000/svg\"\n      >\n        <style>\n          .header {\n            font: 600 18px 'Segoe UI', Ubuntu, Sans-Serif;\n            fill: ${this.colors.titleColor};\n            animation: fadeInAnimation 0.8s ease-in-out forwards;\n          }\n          ${this.css}\n\n          ${process.env.NODE_ENV === \"test\" ? \"\" : getAnimations()}\n          ${\n            this.animations === false\n              ? `* { animation-duration: 0s !important; animation-delay: 0s !important; }`\n              : \"\"\n          }\n        </style>\n\n        ${this.renderGradient()}\n\n        <rect\n          data-testid=\"card-bg\"\n          x=\"0.5\"\n          y=\"0.5\"\n          rx=\"${this.border_radius}\"\n          height=\"99%\"\n          stroke=\"${this.colors.borderColor}\"\n          width=\"${this.width - 1}\"\n          fill=\"${\n            typeof this.colors.bgColor === \"object\"\n              ? \"url(#gradient)\"\n              : this.colors.bgColor\n          }\"\n          stroke-opacity=\"${this.hideBorder ? 0 : 1}\"\n        />\n\n        ${this.hideTitle ? \"\" : this.renderTitle()}\n\n        <g\n          data-testid=\"main-card-body\"\n          transform=\"translate(0, ${\n            this.hideTitle ? this.paddingX : this.paddingY + 20\n          })\"\n        >\n          ${body}\n        </g>\n      </svg>\n    `;\n  }\n}\n\nmodule.exports = Card;\n"
+        }
+      },
+      "nextOpenFileIndex": 4,
+      "storyTellingPointsMap": {
+        "github-readme-stats/api/index.js": {
+          "namespace": "github-readme-stats",
+          "count": 4
+        },
+        "github-readme-stats/src/fetchers/stats-fetcher.js": {
+          "namespace": "github-readme-stats",
+          "count": 2
+        },
+        "github-readme-stats/src/cards/stats-card.js": {
+          "namespace": "github-readme-stats",
+          "count": 3
+        },
+        "github-readme-stats/src/common/Card.js": {
+          "namespace": "github-readme-stats",
+          "count": 1
+        }
+      },
+      "storyTellingConnections": [
+        {
+          "from": {
+            "direction": "from",
+            "path": "github-readme-stats/api/index.js",
+            "lineNumber": 50,
+            "codeAround": {
+              "prevLine": "  try {",
+              "currentLine": "    stats = await fetchStats(",
+              "nextLine": "      username,"
+            },
+            "type": "connection",
+            "namespace": [
+              "github-readme-stats"
+            ],
+            "involvedNodesPathList": [
+              "github-readme-stats/api/index.js",
+              "github-readme-stats/src/fetchers/stats-fetcher.js"
+            ],
+            "id": 0,
+            "playGroup": 1
+          },
+          "to": {
+            "direction": "to",
+            "path": "github-readme-stats/src/fetchers/stats-fetcher.js",
+            "lineNumber": 87,
+            "codeAround": {
+              "prevLine": "",
+              "currentLine": "async function fetchStats(",
+              "nextLine": "  username,"
+            },
+            "type": "connection",
+            "namespace": [
+              "github-readme-stats"
+            ],
+            "involvedNodesPathList": [
+              "github-readme-stats/api/index.js",
+              "github-readme-stats/src/fetchers/stats-fetcher.js"
+            ],
+            "id": 0,
+            "playGroup": 1
+          },
+          "path": "github-readme-stats/api/index.js#50|github-readme-stats/src/fetchers/stats-fetcher.js#87",
+          "type": "connection",
+          "namespace": [
+            "github-readme-stats"
+          ],
+          "involvedNodesPathList": [
+            "github-readme-stats/api/index.js",
+            "github-readme-stats/src/fetchers/stats-fetcher.js"
+          ],
+          "id": 0,
+          "playGroup": 1
+        },
+        {
+          "from": {
+            "direction": "from",
+            "path": "github-readme-stats/src/fetchers/stats-fetcher.js",
+            "lineNumber": 151,
+            "codeAround": {
+              "prevLine": "",
+              "currentLine": "  return stats;",
+              "nextLine": "}"
+            },
+            "type": "connection",
+            "namespace": [
+              "github-readme-stats"
+            ],
+            "involvedNodesPathList": [
+              "github-readme-stats/src/fetchers/stats-fetcher.js",
+              "github-readme-stats/api/index.js"
+            ],
+            "id": 1,
+            "playGroup": 2
+          },
+          "to": {
+            "direction": "to",
+            "path": "github-readme-stats/api/index.js",
+            "lineNumber": 65,
+            "codeAround": {
+              "prevLine": "    return res.send(",
+              "currentLine": "      renderStatsCard(stats, {",
+              "nextLine": "        hide: parseArray(hide),"
+            },
+            "type": "connection",
+            "namespace": [
+              "github-readme-stats"
+            ],
+            "involvedNodesPathList": [
+              "github-readme-stats/src/fetchers/stats-fetcher.js",
+              "github-readme-stats/api/index.js"
+            ],
+            "id": 1,
+            "playGroup": 2
+          },
+          "path": "github-readme-stats/src/fetchers/stats-fetcher.js#151|github-readme-stats/api/index.js#65",
+          "type": "connection",
+          "namespace": [
+            "github-readme-stats"
+          ],
+          "involvedNodesPathList": [
+            "github-readme-stats/src/fetchers/stats-fetcher.js",
+            "github-readme-stats/api/index.js"
+          ],
+          "id": 1,
+          "playGroup": 2
+        },
+        {
+          "from": {
+            "direction": "from",
+            "path": "github-readme-stats/api/index.js",
+            "lineNumber": 65,
+            "codeAround": {
+              "prevLine": "    return res.send(",
+              "currentLine": "      renderStatsCard(stats, {",
+              "nextLine": "        hide: parseArray(hide),"
+            },
+            "type": "connection",
+            "namespace": [
+              "github-readme-stats"
+            ],
+            "involvedNodesPathList": [
+              "github-readme-stats/api/index.js",
+              "github-readme-stats/src/cards/stats-card.js"
+            ],
+            "id": 2,
+            "playGroup": 3
+          },
+          "to": {
+            "direction": "to",
+            "path": "github-readme-stats/src/cards/stats-card.js",
+            "lineNumber": 48,
+            "codeAround": {
+              "prevLine": "",
+              "currentLine": "const renderStatsCard = (stats = {}, options = { hide: [] }) => {",
+              "nextLine": "  const {"
+            },
+            "type": "connection",
+            "namespace": [
+              "github-readme-stats"
+            ],
+            "involvedNodesPathList": [
+              "github-readme-stats/api/index.js",
+              "github-readme-stats/src/cards/stats-card.js"
+            ],
+            "id": 2,
+            "playGroup": 3
+          },
+          "path": "github-readme-stats/api/index.js#65|github-readme-stats/src/cards/stats-card.js#48",
+          "type": "connection",
+          "namespace": [
+            "github-readme-stats"
+          ],
+          "involvedNodesPathList": [
+            "github-readme-stats/api/index.js",
+            "github-readme-stats/src/cards/stats-card.js"
+          ],
+          "id": 2,
+          "playGroup": 3
+        },
+        {
+          "from": {
+            "direction": "from",
+            "path": "github-readme-stats/src/cards/stats-card.js",
+            "lineNumber": 235,
+            "codeAround": {
+              "prevLine": "",
+              "currentLine": "  return card.render(`",
+              "nextLine": "    ${rankCircle}"
+            },
+            "type": "connection",
+            "namespace": [
+              "github-readme-stats"
+            ],
+            "involvedNodesPathList": [
+              "github-readme-stats/src/cards/stats-card.js",
+              "github-readme-stats/src/common/Card.js"
+            ],
+            "id": 3,
+            "playGroup": 4,
+            "dashed": true,
+            "color": "Color2"
+          },
+          "to": {
+            "direction": "to",
+            "path": "github-readme-stats/src/common/Card.js",
+            "lineNumber": 117,
+            "codeAround": {
+              "prevLine": "",
+              "currentLine": "  render(body) {",
+              "nextLine": "    return `"
+            },
+            "type": "connection",
+            "namespace": [
+              "github-readme-stats"
+            ],
+            "involvedNodesPathList": [
+              "github-readme-stats/src/cards/stats-card.js",
+              "github-readme-stats/src/common/Card.js"
+            ],
+            "id": 3,
+            "playGroup": 4,
+            "dashed": true,
+            "color": "Color2"
+          },
+          "path": "github-readme-stats/src/cards/stats-card.js#235|github-readme-stats/src/common/Card.js#117",
+          "type": "connection",
+          "namespace": [
+            "github-readme-stats"
+          ],
+          "involvedNodesPathList": [
+            "github-readme-stats/src/cards/stats-card.js",
+            "github-readme-stats/src/common/Card.js"
+          ],
+          "id": 3,
+          "playGroup": 4,
+          "dashed": true,
+          "color": "Color2"
+        },
+        {
+          "from": {
+            "direction": "from",
+            "path": "github-readme-stats/src/cards/stats-card.js",
+            "lineNumber": 235,
+            "codeAround": {
+              "prevLine": "",
+              "currentLine": "  return card.render(`",
+              "nextLine": "    ${rankCircle}"
+            },
+            "type": "connection",
+            "namespace": [
+              "github-readme-stats"
+            ],
+            "involvedNodesPathList": [
+              "github-readme-stats/src/cards/stats-card.js",
+              "github-readme-stats/api/index.js"
+            ],
+            "id": 4,
+            "playGroup": 5,
+            "color": "Color4",
+            "dashed": false
+          },
+          "to": {
+            "direction": "to",
+            "path": "github-readme-stats/api/index.js",
+            "lineNumber": 64,
+            "codeAround": {
+              "prevLine": "",
+              "currentLine": "    return res.send(",
+              "nextLine": "      renderStatsCard(stats, {"
+            },
+            "type": "connection",
+            "namespace": [
+              "github-readme-stats"
+            ],
+            "involvedNodesPathList": [
+              "github-readme-stats/src/cards/stats-card.js",
+              "github-readme-stats/api/index.js"
+            ],
+            "id": 4,
+            "playGroup": 5,
+            "color": "Color4",
+            "dashed": false
+          },
+          "path": "github-readme-stats/src/cards/stats-card.js#235|github-readme-stats/api/index.js#64",
+          "type": "connection",
+          "namespace": [
+            "github-readme-stats"
+          ],
+          "involvedNodesPathList": [
+            "github-readme-stats/src/cards/stats-card.js",
+            "github-readme-stats/api/index.js"
+          ],
+          "id": 4,
+          "playGroup": 5,
+          "color": "Color4",
+          "dashed": false
+        }
+      ],
+      "explanationTooltipsMap": {
+        "github-readme-stats/api/index.js#14": {
+          "path": "github-readme-stats/api/index.js#14",
+          "codeAround": {
+            "prevLine": "",
+            "currentLine": "module.exports = async (req, res) => {",
+            "nextLine": "  const {"
+          },
+          "type": "explanation",
+          "isOnConnection": false,
+          "namespace": [
+            "github-readme-stats"
+          ],
+          "involvedNodesPathList": [
+            "github-readme-stats/api/index.js"
+          ],
+          "playGroup": 0,
+          "id": 0,
+          "lineNumber": 14,
+          "originalPoint": {
+            "originalOffset": 252,
+            "x": 0,
+            "y": 50
+          },
+          "positionPoint": {
+            "x": -22,
+            "y": 29
+          },
+          "positionPointWithOffset": {
+            "x": -22,
+            "y": 29
+          },
+          "content": "0) Function entry, req and res provided by Vercel running context."
+        },
+        "github-readme-stats/api/index.js#50|github-readme-stats/src/fetchers/stats-fetcher.js#87": {
+          "path": "github-readme-stats/api/index.js#50|github-readme-stats/src/fetchers/stats-fetcher.js#87",
+          "codeAround": null,
+          "type": "explanation",
+          "isOnConnection": true,
+          "namespace": [
+            "github-readme-stats"
+          ],
+          "involvedNodesPathList": [
+            "github-readme-stats/api/index.js",
+            "github-readme-stats/src/fetchers/stats-fetcher.js"
+          ],
+          "playGroup": 1,
+          "id": 1,
+          "originalPoint": {
+            "x": 682.5,
+            "y": 185
+          },
+          "positionPoint": {
+            "x": 660.5,
+            "y": 164
+          },
+          "positionPointWithOffset": {
+            "x": 660.5,
+            "y": 164
+          },
+          "content": "1) Fetching user data and formatting stats (stars, etc.)."
+        },
+        "github-readme-stats/api/index.js#65|github-readme-stats/src/cards/stats-card.js#48": {
+          "path": "github-readme-stats/api/index.js#65|github-readme-stats/src/cards/stats-card.js#48",
+          "codeAround": null,
+          "type": "explanation",
+          "isOnConnection": true,
+          "namespace": [
+            "github-readme-stats"
+          ],
+          "involvedNodesPathList": [
+            "github-readme-stats/api/index.js",
+            "github-readme-stats/src/cards/stats-card.js"
+          ],
+          "playGroup": 3,
+          "id": 3,
+          "originalPoint": {
+            "x": -32.5,
+            "y": 549
+          },
+          "positionPoint": {
+            "x": -54.5,
+            "y": 528
+          },
+          "positionPointWithOffset": {
+            "x": -58.5,
+            "y": 489
+          },
+          "content": "2) Passing stats and other styling options to rendering function (to generate SVG).",
+          "dragging": false,
+          "positionOffset": {
+            "x": -4,
+            "y": -39
+          }
+        },
+        "github-readme-stats/src/cards/stats-card.js#235|github-readme-stats/api/index.js#64": {
+          "path": "github-readme-stats/src/cards/stats-card.js#235|github-readme-stats/api/index.js#64",
+          "codeAround": null,
+          "type": "explanation",
+          "isOnConnection": true,
+          "namespace": [
+            "github-readme-stats"
+          ],
+          "involvedNodesPathList": [
+            "github-readme-stats/src/cards/stats-card.js",
+            "github-readme-stats/api/index.js"
+          ],
+          "playGroup": 5,
+          "id": 4,
+          "originalPoint": {
+            "x": -59.5,
+            "y": 706.5
+          },
+          "positionPoint": {
+            "x": -81.5,
+            "y": 685.5
+          },
+          "positionPointWithOffset": {
+            "x": -81.5,
+            "y": 685.5
+          },
+          "color": "Color4",
+          "content": "3) SVG template filled with stats values sent back as response to the API end-point call. "
+        },
+        "github-readme-stats/src/cards/stats-card.js#235|github-readme-stats/src/common/Card.js#117": {
+          "path": "github-readme-stats/src/cards/stats-card.js#235|github-readme-stats/src/common/Card.js#117",
+          "codeAround": null,
+          "type": "explanation",
+          "isOnConnection": true,
+          "namespace": [
+            "github-readme-stats"
+          ],
+          "involvedNodesPathList": [
+            "github-readme-stats/src/cards/stats-card.js",
+            "github-readme-stats/src/common/Card.js"
+          ],
+          "playGroup": 4,
+          "id": 5,
+          "originalPoint": {
+            "x": 685.5,
+            "y": 871
+          },
+          "positionPoint": {
+            "x": 663.5,
+            "y": 850
+          },
+          "positionPointWithOffset": {
+            "x": 654.5,
+            "y": 826
+          },
+          "color": "Color2",
+          "content": "Card class describes how to generate SVG template.",
+          "dragging": false,
+          "positionOffset": {
+            "x": -9,
+            "y": -24
+          }
+        }
+      },
+      "notesList": []
+    },
+    "controlsBus": {
+      "checkedState": {
+        "explorerBar": true,
+        "rightPanelBar": false,
+        "sourceDiagramOn": false,
+        "sourceKeepOnlyActiveItems": true
+      },
+      "valuesState": {
+        "tilesGridMode": "1_h",
+        "selectedRightPanelBarTab": "annotations"
+      },
+      "disabledState": {}
+    }
+  }
+}

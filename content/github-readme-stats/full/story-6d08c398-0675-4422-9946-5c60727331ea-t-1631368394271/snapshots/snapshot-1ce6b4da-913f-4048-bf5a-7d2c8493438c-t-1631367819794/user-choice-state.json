@@ -1,0 +1,120 @@
+{
+  "id": "snapshot-1ce6b4da-913f-4048-bf5a-7d2c8493438c-t-1631367819794",
+  "userChoiceState": {
+    "involvedNamespacesList": [
+      "github-readme-stats"
+    ],
+    "requiredProjectsSetupList": [
+      {
+        "projectDir": "/Users/bliashenko/Learning/github-readme-stats",
+        "dataContentProjectDir": "/Users/bliashenko/Learning/github-readme-stats/.codecrumbs",
+        "dataContentNamespace": "github-readme-stats",
+        "projectName": "github-readme-stats",
+        "namespace": "github-readme-stats",
+        "programmingLang": "*",
+        "programmingLangExtensions": [],
+        "excludePathsList": [
+          "\\.DS_Store"
+        ],
+        "keepExistingNamespaces": false,
+        "remoteExternalPath": "https://github.com/anuraghazra/github-readme-stats/blob/master",
+        "timestamp": 1632060228610
+      }
+    ],
+    "dataBus": {
+      "openedFolders": {
+        "top": 2,
+        "github-readme-stats": 1,
+        "github-readme-stats/api": 1
+      },
+      "openedCodeFilesMap": {
+        "github-readme-stats/package.json": {
+          "path": "github-readme-stats/package.json",
+          "namespace": "github-readme-stats",
+          "openFileIndex": 0,
+          "playGroup": 0,
+          "id": 0,
+          "type": "openedCodeFile",
+          "height": 180,
+          "width": 660,
+          "positionPoint": {
+            "x": 0,
+            "y": 0
+          },
+          "positionPointWithOffset": {
+            "x": 29,
+            "y": -71
+          },
+          "isHeightResizing": false,
+          "calcLayout": true,
+          "scrollTop": 0,
+          "isWidthResizing": false,
+          "isDragging": false,
+          "positionOffset": {
+            "x": 29,
+            "y": -71
+          },
+          "calcPosition": true,
+          "fileCode": "{\n  \"name\": \"github-readme-stats\",\n  \"version\": \"1.0.0\",\n  \"description\": \"Dynamically generate stats for your github readmes\",\n  \"main\": \"index.js\",\n  \"scripts\": {\n    \"test\": \"jest --coverage\",\n    \"test:watch\": \"jest --watch\",\n    \"theme-readme-gen\": \"node scripts/generate-theme-doc\",\n    \"preview-theme\": \"node scripts/preview-theme\"\n  },\n  \"author\": \"Anurag Hazra\",\n  \"license\": \"MIT\",\n  \"devDependencies\": {\n    \"@actions/core\": \"^1.2.4\",\n    \"@actions/github\": \"^4.0.0\",\n    \"@testing-library/dom\": \"^7.20.0\",\n    \"@testing-library/jest-dom\": \"^5.11.0\",\n    \"axios\": \"^0.19.2\",\n    \"axios-mock-adapter\": \"^1.18.1\",\n    \"css-to-object\": \"^1.1.0\",\n    \"husky\": \"^4.2.5\",\n    \"jest\": \"^26.1.0\",\n    \"parse-diff\": \"^0.7.0\"\n  },\n  \"dependencies\": {\n    \"dotenv\": \"^8.2.0\",\n    \"emoji-name-map\": \"^1.2.8\",\n    \"github-username-regex\": \"^1.0.0\",\n    \"prettier\": \"^2.1.2\",\n    \"word-wrap\": \"^1.2.3\"\n  },\n  \"husky\": {\n    \"hooks\": {\n      \"pre-commit\": \"npm test\"\n    }\n  }\n}\n"
+        }
+      },
+      "nextOpenFileIndex": 1,
+      "storyTellingPointsMap": {},
+      "storyTellingConnections": [],
+      "explanationTooltipsMap": {
+        "github-readme-stats/package.json#5": {
+          "path": "github-readme-stats/package.json#5",
+          "codeAround": {
+            "prevLine": "  \"description\": \"Dynamically generate stats for your github readmes\",",
+            "currentLine": "  \"main\": \"index.js\",",
+            "nextLine": "  \"scripts\": {"
+          },
+          "type": "explanation",
+          "isOnConnection": false,
+          "namespace": [
+            "github-readme-stats"
+          ],
+          "involvedNodesPathList": [
+            "github-readme-stats/package.json"
+          ],
+          "playGroup": 1,
+          "id": 0,
+          "lineNumber": 5,
+          "originalPoint": {
+            "originalOffset": 63,
+            "x": 29,
+            "y": 51
+          },
+          "positionPoint": {
+            "x": 7,
+            "y": 30
+          },
+          "positionPointWithOffset": {
+            "x": -11,
+            "y": 20
+          },
+          "dragging": false,
+          "positionOffset": {
+            "x": -18,
+            "y": -10
+          },
+          "content": "1) Entry point for the package is index.js but it doesn't exist in the project. "
+        }
+      },
+      "notesList": []
+    },
+    "controlsBus": {
+      "checkedState": {
+        "explorerBar": true,
+        "rightPanelBar": false,
+        "sourceDiagramOn": false,
+        "sourceKeepOnlyActiveItems": true
+      },
+      "valuesState": {
+        "tilesGridMode": "1_h",
+        "selectedRightPanelBarTab": "annotations"
+      },
+      "disabledState": {}
+    }
+  }
+}

@@ -1,0 +1,191 @@
+{
+  "id": "snapshot-825b81f3-e569-4cfe-8622-808ee1d09032-t-1632048544505",
+  "userChoiceState": {
+    "involvedNamespacesList": [
+      "github-readme-stats"
+    ],
+    "requiredProjectsSetupList": [
+      {
+        "projectDir": "/Users/bliashenko/Learning/github-readme-stats",
+        "dataContentProjectDir": "/Users/bliashenko/Learning/github-readme-stats/.codecrumbs",
+        "dataContentNamespace": "github-readme-stats",
+        "projectName": "github-readme-stats",
+        "namespace": "github-readme-stats",
+        "programmingLang": "*",
+        "programmingLangExtensions": [],
+        "excludePathsList": [
+          "\\.DS_Store"
+        ],
+        "keepExistingNamespaces": false,
+        "remoteExternalPath": "https://github.com/anuraghazra/github-readme-stats/blob/master",
+        "timestamp": 1632060228610
+      }
+    ],
+    "dataBus": {
+      "openedFolders": {},
+      "openedCodeFilesMap": {
+        "github-readme-stats/src/fetchers/stats-fetcher.js": {
+          "path": "github-readme-stats/src/fetchers/stats-fetcher.js",
+          "namespace": "github-readme-stats",
+          "openFileIndex": 0,
+          "playGroup": 0,
+          "id": 0,
+          "type": "openedCodeFile",
+          "height": 210,
+          "width": 580,
+          "positionPoint": {
+            "x": 0,
+            "y": 0
+          },
+          "positionPointWithOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "scrollTop": 1794,
+          "linesSelectionRangeMap": {
+            "92": {
+              "n": 12,
+              "start": 92,
+              "end": 103,
+              "id": "start92_end103",
+              "playGroup": 0,
+              "isStarted": false,
+              "collapse": true
+            }
+          },
+          "isHeightResizing": false,
+          "calcLayout": true,
+          "isWidthResizing": false,
+          "fileCode": "const axios = require(\"axios\");\nconst githubUsernameRegex = require(\"github-username-regex\");\n\nconst retryer = require(\"../common/retryer\");\nconst calculateRank = require(\"../calculateRank\");\nconst { request, logger, CustomError } = require(\"../common/utils\");\n\nrequire(\"dotenv\").config();\n\nconst fetcher = (variables, token) => {\n  return request(\n    {\n      query: `\n      query userInfo($login: String!) {\n        user(login: $login) {\n          name\n          login\n          contributionsCollection {\n            totalCommitContributions\n            restrictedContributionsCount\n          }\n          repositoriesContributedTo(first: 1, contributionTypes: [COMMIT, ISSUE, PULL_REQUEST, REPOSITORY]) {\n            totalCount\n          }\n          pullRequests(first: 1) {\n            totalCount\n          }\n          issues(first: 1) {\n            totalCount\n          }\n          followers {\n            totalCount\n          }\n          repositories(first: 100, ownerAffiliations: OWNER, orderBy: {direction: DESC, field: STARGAZERS}) {\n            totalCount\n            nodes {\n              stargazers {\n                totalCount\n              }\n            }\n          }\n        }\n      }\n      `,\n      variables,\n    },\n    {\n      Authorization: `bearer ${token}`,\n    },\n  );\n};\n\n// https://github.com/anuraghazra/github-readme-stats/issues/92#issuecomment-661026467\n// https://github.com/anuraghazra/github-readme-stats/pull/211/\nconst totalCommitsFetcher = async (username) => {\n  if (!githubUsernameRegex.test(username)) {\n    logger.log(\"Invalid username\");\n    return 0;\n  }\n\n  // https://developer.github.com/v3/search/#search-commits\n  const fetchTotalCommits = (variables, token) => {\n    return axios({\n      method: \"get\",\n      url: `https://api.github.com/search/commits?q=author:${variables.login}`,\n      headers: {\n        \"Content-Type\": \"application/json\",\n        Accept: \"application/vnd.github.cloak-preview\",\n        Authorization: `bearer ${token}`,\n      },\n    });\n  };\n\n  try {\n    let res = await retryer(fetchTotalCommits, { login: username });\n    if (res.data.total_count) {\n      return res.data.total_count;\n    }\n  } catch (err) {\n    logger.log(err);\n    // just return 0 if there is something wrong so that\n    // we don't break the whole app\n    return 0;\n  }\n};\n\nasync function fetchStats(\n  username,\n  count_private = false,\n  include_all_commits = false,\n) {\n  if (!username) throw Error(\"Invalid username\");\n\n  const stats = {\n    name: \"\",\n    totalPRs: 0,\n    totalCommits: 0,\n    totalIssues: 0,\n    totalStars: 0,\n    contributedTo: 0,\n    rank: { level: \"C\", score: 0 },\n  };\n\n  let res = await retryer(fetcher, { login: username });\n\n  if (res.data.errors) {\n    logger.error(res.data.errors);\n    throw new CustomError(\n      res.data.errors[0].message || \"Could not fetch user\",\n      CustomError.USER_NOT_FOUND,\n    );\n  }\n\n  const user = res.data.data.user;\n\n  stats.name = user.name || user.login;\n  stats.totalIssues = user.issues.totalCount;\n\n  // normal commits\n  stats.totalCommits = user.contributionsCollection.totalCommitContributions;\n\n  // if include_all_commits then just get that,\n  // since totalCommitsFetcher already sends totalCommits no need to +=\n  if (include_all_commits) {\n    stats.totalCommits = await totalCommitsFetcher(username);\n  }\n\n  // if count_private then add private commits to totalCommits so far.\n  if (count_private) {\n    stats.totalCommits +=\n      user.contributionsCollection.restrictedContributionsCount;\n  }\n\n  stats.totalPRs = user.pullRequests.totalCount;\n  stats.contributedTo = user.repositoriesContributedTo.totalCount;\n\n  stats.totalStars = user.repositories.nodes.reduce((prev, curr) => {\n    return prev + curr.stargazers.totalCount;\n  }, 0);\n\n  stats.rank = calculateRank({\n    totalCommits: stats.totalCommits,\n    totalRepos: user.repositories.totalCount,\n    followers: user.followers.totalCount,\n    contributions: stats.contributedTo,\n    stargazers: stats.totalStars,\n    prs: stats.totalPRs,\n    issues: stats.totalIssues,\n  });\n\n  return stats;\n}\n\nmodule.exports = fetchStats;\n"
+        },
+        "github-readme-stats/src/common/retryer.js": {
+          "path": "github-readme-stats/src/common/retryer.js",
+          "namespace": "github-readme-stats",
+          "openFileIndex": 1,
+          "playGroup": 0,
+          "id": 1,
+          "type": "openedCodeFile",
+          "height": 540,
+          "width": 870,
+          "positionPoint": {
+            "x": 680,
+            "y": 0
+          },
+          "positionPointWithOffset": {
+            "x": 680,
+            "y": 0
+          },
+          "isHeightResizing": false,
+          "calcLayout": true,
+          "isWidthResizing": false,
+          "scrollTop": 36,
+          "fileCode": "const { logger, CustomError } = require(\"../common/utils\");\n\nconst retryer = async (fetcher, variables, retries = 0) => {\n  if (retries > 7) {\n    throw new CustomError(\"Maximum retries exceeded\", CustomError.MAX_RETRY);\n  }\n  try {\n    // try to fetch with the first token since RETRIES is 0 index i'm adding +1\n    let response = await fetcher(\n      variables,\n      process.env[`PAT_${retries + 1}`],\n      retries,\n    );\n\n    // prettier-ignore\n    const isRateExceeded = response.data.errors && response.data.errors[0].type === \"RATE_LIMITED\";\n\n    // if rate limit is hit increase the RETRIES and recursively call the retryer\n    // with username, and current RETRIES\n    if (isRateExceeded) {\n      logger.log(`PAT_${retries + 1} Failed`);\n      retries++;\n      // directly return from the function\n      return retryer(fetcher, variables, retries);\n    }\n\n    // finally return the response\n    return response;\n  } catch (err) {\n    // prettier-ignore\n    // also checking for bad credentials if any tokens gets invalidated\n    const isBadCredential = err.response.data && err.response.data.message === \"Bad credentials\";\n\n    if (isBadCredential) {\n      logger.log(`PAT_${retries + 1} Failed`);\n      retries++;\n      // directly return from the function\n      return retryer(fetcher, variables, retries);\n    }\n  }\n};\n\nmodule.exports = retryer;\n"
+        }
+      },
+      "nextOpenFileIndex": 2,
+      "storyTellingPointsMap": {
+        "github-readme-stats/src/fetchers/stats-fetcher.js": {
+          "namespace": "github-readme-stats",
+          "count": 1
+        },
+        "github-readme-stats/src/common/retryer.js": {
+          "namespace": "github-readme-stats",
+          "count": null
+        }
+      },
+      "storyTellingConnections": [
+        {
+          "from": {
+            "direction": "from",
+            "path": "github-readme-stats/src/fetchers/stats-fetcher.js",
+            "lineNumber": 104,
+            "codeAround": {
+              "prevLine": "",
+              "currentLine": "  let res = await retryer(fetcher, { login: username });",
+              "nextLine": ""
+            },
+            "type": "connection",
+            "namespace": [
+              "github-readme-stats"
+            ],
+            "involvedNodesPathList": [
+              "github-readme-stats/src/fetchers/stats-fetcher.js",
+              "github-readme-stats/src/common/retryer.js"
+            ],
+            "id": 0,
+            "playGroup": 0,
+            "color": "Color2"
+          },
+          "to": {
+            "direction": "to",
+            "path": "github-readme-stats/src/common/retryer.js",
+            "lineNumber": 3,
+            "codeAround": {
+              "prevLine": "",
+              "currentLine": "const retryer = async (fetcher, variables, retries = 0) => {",
+              "nextLine": "  if (retries > 7) {"
+            },
+            "type": "connection",
+            "namespace": [
+              "github-readme-stats"
+            ],
+            "involvedNodesPathList": [
+              "github-readme-stats/src/fetchers/stats-fetcher.js",
+              "github-readme-stats/src/common/retryer.js"
+            ],
+            "id": 0,
+            "playGroup": 0,
+            "color": "Color2"
+          },
+          "path": "github-readme-stats/src/fetchers/stats-fetcher.js#104|github-readme-stats/src/common/retryer.js#3",
+          "type": "connection",
+          "namespace": [
+            "github-readme-stats"
+          ],
+          "involvedNodesPathList": [
+            "github-readme-stats/src/fetchers/stats-fetcher.js",
+            "github-readme-stats/src/common/retryer.js"
+          ],
+          "id": 0,
+          "playGroup": 0,
+          "color": "Color2"
+        }
+      ],
+      "explanationTooltipsMap": {},
+      "notesList": [
+        {
+          "position": {
+            "x": 356,
+            "y": 262
+          },
+          "resize": {
+            "x": 61,
+            "y": 54
+          },
+          "width": 250,
+          "height": 150,
+          "id": 0,
+          "playGroup": 1,
+          "type": "note",
+          "color": "Color2",
+          "dragging": false,
+          "content": "For stability of our App (API endpoint) we want to make calls, we have internally, more predictable and stable. Often network calls can fail (for different reasons) but it is not necessary means something wrong, we might just do extra attempt.",
+          "resizing": false
+        }
+      ]
+    },
+    "controlsBus": {
+      "checkedState": {
+        "explorerBar": true,
+        "rightPanelBar": false,
+        "sourceDiagramOn": false,
+        "sourceKeepOnlyActiveItems": true
+      },
+      "valuesState": {
+        "tilesGridMode": "1_h",
+        "selectedRightPanelBarTab": "annotations"
+      },
+      "disabledState": {}
+    }
+  }
+}

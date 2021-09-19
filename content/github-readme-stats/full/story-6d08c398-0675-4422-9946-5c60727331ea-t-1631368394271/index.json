@@ -1,0 +1,16 @@
+{
+  "id": "story-6d08c398-0675-4422-9946-5c60727331ea-t-1631368394271",
+  "isLocalDraft": false,
+  "title": "Under the hood of github-readme-stats project",
+  "description": "Recently I came across this \"stats picture\" in someone's Readme profile on Github, displaying profile information, and it caught my attention. It is dynamic, meaning, every time you see this image it is going to be up to date with the current stats. But, how does it render dynamic information inside of the static markdown page?",
+  "tags": "javascript,github-readme-stats",
+  "type": "story",
+  "author": {
+    "userNameEmailHash": "Qm9oZGFuIExpYXNoZW5rbytseWFzaGVua29pbmNAZ21haWwuY29t",
+    "displayName": "Bohdan Liashenko",
+    "email": "lyashenkoinc@gmail.com"
+  },
+  "hash": 1631368394271,
+  "isRemote": false,
+  "isLocalFsStory": true
+}

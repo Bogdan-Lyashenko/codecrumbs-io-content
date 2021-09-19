@@ -1,0 +1,115 @@
+{
+  "id": "story-6d08c398-0675-4422-9946-5c60727331ea-t-1631368394271",
+  "content": "## Intro\nRecently I came across this \"stats picture\" in someone's Readme profile on Github, displaying profile information, and it caught my attention. Yes, I am talking about this `github-readme-stats` widget, here is an example for my profile. \n\n![Example of the stats picture for my profile](https://github-readme-stats.vercel.app/api?username=Bogdan-Lyashenko&show_icons=true&hide=contribs)\n\nWhat is interesting, it is dynamic, meaning, every time you see this image it is going to be up to date with the current stats. But, how does it render dynamic information inside of the static markdown page?\n\nLooks cool though, so I started digging - inspected source and quickly found out there is app running at [github-readme-stats.vercel.app](https://github-readme-stats.vercel.app/) so can be used by anyone, and it is an open source project [github-readme-stats](https://github.com/anuraghazra/github-readme-stats) so we can look at the implementation as well.\n\nAwesome, let's look under the hood then.\n\n## How it works\nWell, all you need to do is simply use the `img` with API endpoint, specifying Github username. \n```\n<img src =\"https://github-readme-stats.vercel.app/api?username=Bogdan-Lyashenko\" />\n```\nThere is plenty of other parameters to customise the widget, like what information to display, what colour theme to use, etc.\n\nSo, let's have a look what exactly this end-point returns.\n![It returns SVG!](https://bogdan-lyashenko.github.io/codecrumbs-io-content/content/github-readme-stats/img/network-payload-preview.png) \n**It returns SVG!** Yes, you can use `SVG` as a source for an image `HTML` element. `SVG` loses its interactivity because of that, but it's not critical in this use-case. And if you think about it, it kind of make sense, I mean, it's way easier obviously to manipulate with vector graphics and generate `SVG` markup than work with `raster binary` data (as we know it for `PNG`/`JPEG`/etc. images formats).\n\n## Under the hood\nWhere do we start? It is `JavaScript` project, so looking inside [`package.json`](#codecrumbs-item-path=github-readme-stats/package.json) is always good starting point (as a standard).\n{snapshot:10|package.json}\nWe can see `main` points {step:1} to `index.js` but there is not such file. What we do have though are some other hints... \n{snapshot:3|Vercel hints}\nInteresting... Well, we saw this already (by `vercel.app` piece in the url) but these {step:2} are hints that this package is not \"standard\", it is [\"Powered by Vercel\"](https://vercel.com/) with [Serverless Functions](https://vercel.com/docs/functions/introduction#) - we can tell that by presence of `/api` directory (standard directory used by `Vercel`) for functions.\n\nThat means that [`api/index.js`](#codecrumbs-item-path=github-readme-stats/api/index.js) is in fact **the entry point** of the application and the place where we should start reading code.\n{snapshot:11|Main modules}\n\nLet's see what we have here:\n\n| | |\n| --------- | ------- |\n| {step:0} |All starts at [`api/index.js`](#codecrumbs-item-path=github-readme-stats/api/index.js) default function, it's  called by `Vercel`, providing  `req` and `res` parameters; essentially giving us a way to read request parameters for `GET` call and a `res` object  to send back response. As you can see first thing we do, we set proper headers for the payload: `res.setHeader(\"Content-Type\", \"image/svg+xml\");` |\n| {step:1} | Next we need to fetch some stats data, count stars, etc. The `graphql` end-point for Github API is used here (more details about that later).|\n| {step:2} | Once stats are received, passing them to [`cards/stats-card.js`](#codecrumbs-item-path=github-readme-stats/src/cards/stats-card.js), as well as extra parameters how to style the widget. `Card` class is used to generate complete `SVG` markup and fill up with stats data.|\n| {step:3} |And, finally we send `SVG` back to the client.|\n\nOnce again, how Github stats were fetched? Using `graphql`!\n{snapshot:12|Github API}\nAlternatively one can use [@octokit/rest](https://octokit.github.io/rest.js/v18/) client to simplify interactions with Github API (instead of create graphql queries you can call particular helper for the same operation). \n\n## Interesting finds\nThere are few things I've also noticed that worth to mention. \n\nFirst thing is **blacklisting** hook. To prevent spamming (and other bad behaviour) we filter out requests by username and just return an error instead. \n{snapshot:13|Blacklisting}\n\nAnother one is **retryer** for API calls. It does exactly what you think - re-trying API calls.\n{snapshot:14|Retryer}\nFor stability of our App (API endpoint) we want to make calls, we have internally, more predictable and stable. Often network calls can fail (for different reasons) but it is not necessary means something wrong, we might just do extra attempt.\n\nHere it is! \n\n",
+  "snapshotsAliasIdCount": 14,
+  "snapshots": [
+    {
+      "id": "snapshot-da3e2f68-b3a4-45e7-9763-8a0c1b0a938d-t-1631970036592",
+      "aliasId": "3",
+      "title": "Vercel hints",
+      "size": {
+        "width": 731,
+        "height": 274
+      },
+      "author": {
+        "userNameEmailHash": "Qm9oZGFuIExpYXNoZW5rbytseWFzaGVua29pbmNAZ21haWwuY29t",
+        "displayName": "Bohdan Liashenko",
+        "email": "lyashenkoinc@gmail.com"
+      },
+      "hash": 1631970637994,
+      "type": "snapshot",
+      "tags": "snapshot, Bohdan Liashenko",
+      "description": ""
+    },
+    {
+      "id": "snapshot-1ce6b4da-913f-4048-bf5a-7d2c8493438c-t-1631367819794",
+      "aliasId": "10",
+      "title": "package.json",
+      "size": {
+        "width": 940,
+        "height": 225
+      },
+      "author": {
+        "userNameEmailHash": "Qm9oZGFuIExpYXNoZW5rbytseWFzaGVua29pbmNAZ21haWwuY29t",
+        "displayName": "Bohdan Liashenko",
+        "email": "lyashenkoinc@gmail.com"
+      },
+      "hash": 1632060477032,
+      "type": "snapshot",
+      "tags": "snapshot, Bohdan Liashenko",
+      "description": ""
+    },
+    {
+      "id": "snapshot-85728680-333e-43e8-bdea-e70a4a0a67ec-t-1631971509193",
+      "aliasId": "11",
+      "title": "Main modules",
+      "size": {
+        "width": 1681,
+        "height": 1281
+      },
+      "author": {
+        "userNameEmailHash": "Qm9oZGFuIExpYXNoZW5rbytseWFzaGVua29pbmNAZ21haWwuY29t",
+        "displayName": "Bohdan Liashenko",
+        "email": "lyashenkoinc@gmail.com"
+      },
+      "hash": 1632060536998,
+      "type": "snapshot",
+      "tags": "snapshot, Bohdan Liashenko",
+      "description": ""
+    },
+    {
+      "id": "snapshot-16800328-4f1b-47e1-9b69-3b0ea31a0c34-t-1631979447410",
+      "aliasId": "12",
+      "title": "Github API",
+      "size": {
+        "width": 1180,
+        "height": 725
+      },
+      "author": {
+        "userNameEmailHash": "Qm9oZGFuIExpYXNoZW5rbytseWFzaGVua29pbmNAZ21haWwuY29t",
+        "displayName": "Bohdan Liashenko",
+        "email": "lyashenkoinc@gmail.com"
+      },
+      "hash": 1632060553693,
+      "type": "snapshot",
+      "tags": "snapshot, Bohdan Liashenko",
+      "description": ""
+    },
+    {
+      "id": "snapshot-e93514ba-784d-4a46-af45-2ebb9f9ff850-t-1632047907655",
+      "aliasId": "13",
+      "title": "Blacklisting",
+      "size": {
+        "width": 1300,
+        "height": 391
+      },
+      "author": {
+        "userNameEmailHash": "Qm9oZGFuIExpYXNoZW5rbytseWFzaGVua29pbmNAZ21haWwuY29t",
+        "displayName": "Bohdan Liashenko",
+        "email": "lyashenkoinc@gmail.com"
+      },
+      "hash": 1632060568712,
+      "type": "snapshot",
+      "tags": "snapshot, Bohdan Liashenko",
+      "description": ""
+    },
+    {
+      "id": "snapshot-825b81f3-e569-4cfe-8622-808ee1d09032-t-1632048544505",
+      "aliasId": "14",
+      "title": "Retryer",
+      "size": {
+        "width": 1590,
+        "height": 585
+      },
+      "author": {
+        "userNameEmailHash": "Qm9oZGFuIExpYXNoZW5rbytseWFzaGVua29pbmNAZ21haWwuY29t",
+        "displayName": "Bohdan Liashenko",
+        "email": "lyashenkoinc@gmail.com"
+      },
+      "hash": 1632060579017,
+      "type": "snapshot",
+      "tags": "snapshot, Bohdan Liashenko",
+      "description": ""
+    }
+  ]
+}

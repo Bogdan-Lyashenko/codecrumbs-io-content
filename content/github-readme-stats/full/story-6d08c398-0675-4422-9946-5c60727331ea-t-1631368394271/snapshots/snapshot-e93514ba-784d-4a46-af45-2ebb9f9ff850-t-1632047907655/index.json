@@ -1,0 +1,18 @@
+{
+  "id": "snapshot-e93514ba-784d-4a46-af45-2ebb9f9ff850-t-1632047907655",
+  "aliasId": "13",
+  "title": "Blacklisting",
+  "size": {
+    "width": 1300,
+    "height": 391
+  },
+  "author": {
+    "userNameEmailHash": "Qm9oZGFuIExpYXNoZW5rbytseWFzaGVua29pbmNAZ21haWwuY29t",
+    "displayName": "Bohdan Liashenko",
+    "email": "lyashenkoinc@gmail.com"
+  },
+  "hash": 1632060568712,
+  "type": "snapshot",
+  "tags": "snapshot, Bohdan Liashenko",
+  "description": ""
+}

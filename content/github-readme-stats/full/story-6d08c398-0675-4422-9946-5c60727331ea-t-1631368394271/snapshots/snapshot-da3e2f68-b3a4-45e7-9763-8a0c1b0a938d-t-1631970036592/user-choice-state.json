@@ -1,0 +1,188 @@
+{
+  "id": "snapshot-da3e2f68-b3a4-45e7-9763-8a0c1b0a938d-t-1631970036592",
+  "userChoiceState": {
+    "involvedNamespacesList": [
+      "github-readme-stats"
+    ],
+    "requiredProjectsSetupList": [
+      {
+        "projectDir": "/Users/bliashenko/Learning/github-readme-stats",
+        "dataContentProjectDir": "/Users/bliashenko/Learning/github-readme-stats/.codecrumbs",
+        "dataContentNamespace": "github-readme-stats",
+        "projectName": "github-readme-stats",
+        "namespace": "github-readme-stats",
+        "programmingLang": "*",
+        "programmingLangExtensions": [],
+        "excludePathsList": [
+          "\\.DS_Store"
+        ],
+        "keepExistingNamespaces": false,
+        "remoteExternalPath": "https://github.com/anuraghazra/github-readme-stats",
+        "timestamp": 1631367811259
+      }
+    ],
+    "dataBus": {
+      "openedFolders": {
+        "github-readme-stats/api": 1,
+        "github-readme-stats/docs": 0,
+        "github-readme-stats/scripts": 2,
+        "github-readme-stats/src/cards": 0,
+        "github-readme-stats/src/common": 0,
+        "github-readme-stats/src/fetchers": 0,
+        "github-readme-stats/src": 0,
+        "github-readme-stats/tests": 0,
+        "github-readme-stats/themes": 0,
+        "github-readme-stats": 1,
+        "top": 2
+      },
+      "openedCodeFilesMap": {},
+      "nextOpenFileIndex": 0,
+      "storyTellingPointsMap": {},
+      "storyTellingConnections": [],
+      "explanationTooltipsMap": {
+        "github-readme-stats/vercel.json": {
+          "path": "github-readme-stats/vercel.json",
+          "codeAround": null,
+          "type": "explanation",
+          "isOnConnection": false,
+          "namespace": [
+            "github-readme-stats"
+          ],
+          "involvedNodesPathList": [
+            "github-readme-stats/vercel.json"
+          ],
+          "playGroup": 2,
+          "id": 0,
+          "originalPoint": {
+            "x": 230.17,
+            "y": 90
+          },
+          "positionPoint": {
+            "x": 208.17,
+            "y": 69
+          },
+          "positionPointWithOffset": {
+            "x": 679.17,
+            "y": 15
+          },
+          "isOrderNumber": false,
+          "content": "2) We knew this already (by vercel.app piece in the url) but these are hints that this package is not \"standard\". ",
+          "group": "github-readme-stats/vercel.json",
+          "dragging": false,
+          "positionOffset": {
+            "x": 471,
+            "y": -54
+          }
+        },
+        "github-readme-stats/powered-by-vercel.svg": {
+          "path": "github-readme-stats/powered-by-vercel.svg",
+          "codeAround": null,
+          "type": "explanation",
+          "isOnConnection": false,
+          "namespace": [
+            "github-readme-stats"
+          ],
+          "involvedNodesPathList": [
+            "github-readme-stats/powered-by-vercel.svg"
+          ],
+          "playGroup": 1,
+          "id": 1,
+          "originalPoint": {
+            "x": 230.17,
+            "y": 45
+          },
+          "positionPoint": {
+            "x": 208.17,
+            "y": 24
+          },
+          "positionPointWithOffset": {
+            "x": 208.17,
+            "y": 24
+          },
+          "group": "github-readme-stats/vercel.json"
+        },
+        "github-readme-stats/api": {
+          "path": "github-readme-stats/api",
+          "codeAround": null,
+          "type": "explanation",
+          "isOnConnection": false,
+          "namespace": [
+            "github-readme-stats"
+          ],
+          "involvedNodesPathList": [
+            "github-readme-stats/api"
+          ],
+          "playGroup": 2,
+          "id": 2,
+          "originalPoint": {
+            "x": 230.17,
+            "y": -90
+          },
+          "positionPoint": {
+            "x": 208.17,
+            "y": -111
+          },
+          "positionPointWithOffset": {
+            "x": 188.17,
+            "y": -84
+          },
+          "isOrderNumber": false,
+          "content": "",
+          "group": "github-readme-stats/vercel.json",
+          "dragging": false,
+          "positionOffset": {
+            "x": -20,
+            "y": 27
+          }
+        },
+        "github-readme-stats/src": {
+          "path": "github-readme-stats/src",
+          "codeAround": null,
+          "type": "explanation",
+          "isOnConnection": false,
+          "namespace": [
+            "github-readme-stats"
+          ],
+          "involvedNodesPathList": [
+            "github-readme-stats/src"
+          ],
+          "playGroup": 1,
+          "id": 3,
+          "originalPoint": {
+            "x": 230.17,
+            "y": -45
+          },
+          "positionPoint": {
+            "x": 208.17,
+            "y": -66
+          },
+          "positionPointWithOffset": {
+            "x": 196.17,
+            "y": -77
+          },
+          "dragging": false,
+          "positionOffset": {
+            "x": -12,
+            "y": -11
+          },
+          "content": "All code lives here?",
+          "color": "Color4"
+        }
+      },
+      "notesList": []
+    },
+    "controlsBus": {
+      "checkedState": {
+        "explorerBar": true,
+        "rightPanelBar": false,
+        "sourceDiagramOn": true,
+        "sourceKeepOnlyActiveItems": false
+      },
+      "valuesState": {
+        "tilesGridMode": "1_h",
+        "selectedRightPanelBarTab": "annotations"
+      },
+      "disabledState": {}
+    }
+  }
+}

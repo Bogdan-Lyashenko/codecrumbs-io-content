@@ -1,0 +1,197 @@
+{
+  "id": "snapshot-e93514ba-784d-4a46-af45-2ebb9f9ff850-t-1632047907655",
+  "userChoiceState": {
+    "involvedNamespacesList": [
+      "github-readme-stats"
+    ],
+    "requiredProjectsSetupList": [
+      {
+        "projectDir": "/Users/bliashenko/Learning/github-readme-stats",
+        "dataContentProjectDir": "/Users/bliashenko/Learning/github-readme-stats/.codecrumbs",
+        "dataContentNamespace": "github-readme-stats",
+        "projectName": "github-readme-stats",
+        "namespace": "github-readme-stats",
+        "programmingLang": "*",
+        "programmingLangExtensions": [],
+        "excludePathsList": [
+          "\\.DS_Store"
+        ],
+        "keepExistingNamespaces": false,
+        "remoteExternalPath": "https://github.com/anuraghazra/github-readme-stats/blob/master",
+        "timestamp": 1632060228610
+      }
+    ],
+    "dataBus": {
+      "openedFolders": {},
+      "openedCodeFilesMap": {
+        "github-readme-stats/api/index.js": {
+          "path": "github-readme-stats/api/index.js",
+          "namespace": "github-readme-stats",
+          "openFileIndex": 0,
+          "playGroup": 0,
+          "id": 0,
+          "type": "openedCodeFile",
+          "height": 320,
+          "width": 590,
+          "positionPoint": {
+            "x": 0,
+            "y": 0
+          },
+          "positionPointWithOffset": {
+            "x": 0,
+            "y": 0
+          },
+          "scrollTop": 165,
+          "isHeightResizing": false,
+          "calcLayout": true,
+          "linesSelectionRangeMap": {
+            "17": {
+              "n": 24,
+              "start": 17,
+              "end": 40,
+              "id": "start17_end40",
+              "playGroup": 0,
+              "isStarted": false,
+              "collapse": true
+            }
+          },
+          "isWidthResizing": false,
+          "fileCode": "require(\"dotenv\").config();\nconst {\n  renderError,\n  parseBoolean,\n  parseArray,\n  clampValue,\n  CONSTANTS,\n} = require(\"../src/common/utils\");\nconst fetchStats = require(\"../src/fetchers/stats-fetcher\");\nconst renderStatsCard = require(\"../src/cards/stats-card\");\nconst blacklist = require(\"../src/common/blacklist\");\nconst { isLocaleAvailable } = require(\"../src/translations\");\n\nmodule.exports = async (req, res) => {\n  const {\n    username,\n    hide,\n    hide_title,\n    hide_border,\n    hide_rank,\n    show_icons,\n    count_private,\n    include_all_commits,\n    line_height,\n    title_color,\n    icon_color,\n    text_color,\n    bg_color,\n    theme,\n    cache_seconds,\n    custom_title,\n    locale,\n    disable_animations,\n    border_radius,\n    border_color,\n  } = req.query;\n  let stats;\n\n  res.setHeader(\"Content-Type\", \"image/svg+xml\");\n\n  if (blacklist.includes(username)) {\n    return res.send(renderError(\"Something went wrong\"));\n  }\n\n  if (locale && !isLocaleAvailable(locale)) {\n    return res.send(renderError(\"Something went wrong\", \"Language not found\"));\n  }\n\n  try {\n    stats = await fetchStats(\n      username,\n      parseBoolean(count_private),\n      parseBoolean(include_all_commits),\n    );\n\n    const cacheSeconds = clampValue(\n      parseInt(cache_seconds || CONSTANTS.TWO_HOURS, 10),\n      CONSTANTS.TWO_HOURS,\n      CONSTANTS.ONE_DAY,\n    );\n\n    res.setHeader(\"Cache-Control\", `public, max-age=${cacheSeconds}`);\n\n    return res.send(\n      renderStatsCard(stats, {\n        hide: parseArray(hide),\n        show_icons: parseBoolean(show_icons),\n        hide_title: parseBoolean(hide_title),\n        hide_border: parseBoolean(hide_border),\n        hide_rank: parseBoolean(hide_rank),\n        include_all_commits: parseBoolean(include_all_commits),\n        line_height,\n        title_color,\n        icon_color,\n        text_color,\n        bg_color,\n        theme,\n        custom_title,\n        border_radius,\n        border_color,\n        locale: locale ? locale.toLowerCase() : null,\n        disable_animations: parseBoolean(disable_animations),\n      }),\n    );\n  } catch (err) {\n    return res.send(renderError(err.message, err.secondaryMessage));\n  }\n};\n"
+        },
+        "github-readme-stats/src/common/blacklist.js": {
+          "path": "github-readme-stats/src/common/blacklist.js",
+          "namespace": "github-readme-stats",
+          "openFileIndex": 1,
+          "playGroup": 0,
+          "id": 1,
+          "type": "openedCodeFile",
+          "height": 120,
+          "width": 580,
+          "positionPoint": {
+            "x": 900,
+            "y": 0
+          },
+          "positionPointWithOffset": {
+            "x": 680,
+            "y": 30
+          },
+          "isHeightResizing": false,
+          "calcLayout": true,
+          "isWidthResizing": false,
+          "isDragging": false,
+          "positionOffset": {
+            "x": -220,
+            "y": 30
+          },
+          "calcPosition": true,
+          "fileCode": "const blacklist = [\"renovate-bot\", \"technote-space\", \"sw-yx\"];\n\nmodule.exports = blacklist;\n"
+        }
+      },
+      "nextOpenFileIndex": 2,
+      "storyTellingPointsMap": {
+        "github-readme-stats/api/index.js": {
+          "namespace": "github-readme-stats",
+          "count": null
+        },
+        "github-readme-stats/src/common/blacklist.js": {
+          "namespace": "github-readme-stats",
+          "count": 1
+        }
+      },
+      "storyTellingConnections": [
+        {
+          "from": {
+            "direction": "from",
+            "path": "github-readme-stats/api/index.js",
+            "lineNumber": 41,
+            "codeAround": {
+              "prevLine": "",
+              "currentLine": "  if (blacklist.includes(username)) {",
+              "nextLine": "    return res.send(renderError(\"Something went wrong\"));"
+            },
+            "type": "connection",
+            "namespace": [
+              "github-readme-stats"
+            ],
+            "involvedNodesPathList": [
+              "github-readme-stats/api/index.js",
+              "github-readme-stats/src/common/blacklist.js"
+            ],
+            "id": 0,
+            "playGroup": 0,
+            "dashed": true,
+            "color": "Color6"
+          },
+          "to": {
+            "direction": "to",
+            "path": "github-readme-stats/src/common/blacklist.js",
+            "lineNumber": 1,
+            "codeAround": {
+              "currentLine": "const blacklist = [\"renovate-bot\", \"technote-space\", \"sw-yx\"];",
+              "nextLine": ""
+            },
+            "type": "connection",
+            "namespace": [
+              "github-readme-stats"
+            ],
+            "involvedNodesPathList": [
+              "github-readme-stats/api/index.js",
+              "github-readme-stats/src/common/blacklist.js"
+            ],
+            "id": 0,
+            "playGroup": 0,
+            "dashed": true,
+            "color": "Color6"
+          },
+          "path": "github-readme-stats/api/index.js#41|github-readme-stats/src/common/blacklist.js#1",
+          "type": "connection",
+          "namespace": [
+            "github-readme-stats"
+          ],
+          "involvedNodesPathList": [
+            "github-readme-stats/api/index.js",
+            "github-readme-stats/src/common/blacklist.js"
+          ],
+          "id": 0,
+          "playGroup": 0,
+          "dashed": true,
+          "color": "Color6"
+        }
+      ],
+      "explanationTooltipsMap": {},
+      "notesList": [
+        {
+          "position": {
+            "x": 687,
+            "y": 216
+          },
+          "resize": {
+            "x": 0,
+            "y": 0
+          },
+          "width": 250,
+          "height": 150,
+          "id": 0,
+          "playGroup": 1,
+          "type": "note",
+          "color": "Color6",
+          "dragging": false,
+          "content": "To prevent spamming (and other bad behaviour) we filter out requests by username and just return an error instead. "
+        }
+      ]
+    },
+    "controlsBus": {
+      "checkedState": {
+        "explorerBar": true,
+        "rightPanelBar": false,
+        "sourceDiagramOn": false,
+        "sourceKeepOnlyActiveItems": true
+      },
+      "valuesState": {
+        "tilesGridMode": "1_h",
+        "selectedRightPanelBarTab": "annotations"
+      },
+      "disabledState": {}
+    }
+  }
+}
